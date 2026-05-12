@@ -28,7 +28,7 @@ Treat uploaded files as untrusted. This app analyzes documents but does not sand
 
 ## Deploy as a Kasm Workspace
 
-This repository includes Kasm-specific container assets so the app can run as a Workspace with the built-in desktop and noVNC session.
+This repository includes Kasm-specific container assets so the app can run as a Workspace with the built-in Firefox desktop/noVNC session.
 
 ### 1) Build and push the workspace image
 
@@ -46,4 +46,4 @@ docker push <your-registry>/ole-gui:latest
 
 ### 3) Launch and use
 
-When the Workspace starts, the app is served inside the container on port `8081` and the desktop session attempts to open `http://127.0.0.1:8081` automatically.
+When the Workspace starts, the app is served inside the container on port `8081` and Firefox opens `http://127.0.0.1:8081` automatically.

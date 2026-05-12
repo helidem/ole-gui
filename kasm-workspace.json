@@ -1,5 +1,5 @@
 {
-  "friendly_name": "Oletools GUI",
+  "friendly_name": "Oletools GUI (Firefox)",
   "image_src": "kasmweb/ole-gui:latest",
   "description": "Analyze Office/RTF files with oletools from a browser-based Kasm Workspace.",
   "cores": 2,
@@ -14,9 +14,5 @@
   "run_config": {
     "hostname": "kasm-ole-gui"
   },
-  "exec_config": {
-    "first_launch": {
-      "cmd": "bash -lc 'xdg-open http://127.0.0.1:8081 || true'"
-    }
-  }
+  "notes": "Firefox opens automatically to the app URL on startup."
 }
