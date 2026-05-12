@@ -421,7 +421,7 @@ th {
   text-transform: uppercase;
 }
 
-pre {
+.macro-item pre {
   margin: 0;
   overflow: auto;
   max-height: 360px;
@@ -432,6 +432,64 @@ pre {
   padding: 13px;
   font-size: 0.82rem;
   line-height: 1.5;
+}
+
+.raw-output {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  overflow: hidden;
+}
+
+.mraptor-summary {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 12px;
+}
+
+.mraptor-status {
+  display: grid;
+  gap: 4px;
+}
+
+.mraptor-status span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.raw-output-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f3f6f8;
+}
+
+.raw-output-heading small {
+  color: var(--muted);
+}
+
+.raw-output-lines {
+  margin: 0;
+  padding: 10px 0 10px 42px;
+  max-height: 360px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #1f2937;
+  background: #ffffff;
+}
+
+.raw-output-lines li {
+  white-space: pre-wrap;
+  padding: 0 12px 0 6px;
 }
 
 .macro-grid {
