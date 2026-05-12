@@ -441,6 +441,26 @@ th {
   overflow: hidden;
 }
 
+.mraptor-summary {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 12px;
+}
+
+.mraptor-status {
+  display: grid;
+  gap: 4px;
+}
+
+.mraptor-status span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
 .raw-output-heading {
   display: flex;
   align-items: baseline;
