@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-set -ex # Added -x for better debugging in logs
+set -ex
 
-VENV_PATH="${VENV_PATH:-/opt/ole-gui/.venv}"
-OLE_GUI_PORT="${OLE_GUI_PORT:-8081}"
+# Use a port that doesn't conflict with Kasm internals (8081 is often taken)
+export OLE_GUI_PORT=8085
+VENV_PATH="/opt/ole-gui/.venv"
 
-# 1. Start the Oletools GUI API in the background
-# We use the absolute path to the venv to ensure it finds the right libraries
-"${VENV_PATH}/bin/uvicorn" app.main:app --host 0.0.0.0 --port "${OLE_GUI_PORT}" --proxy-headers &
+# 1. Start the API in the background. 
+# If your app is Flask, use the python command. If FastAPI, use uvicorn.
+# We use & to ensure it runs in the background.
+$VENV_PATH/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port $OLE_GUI_PORT --proxy-headers &
 
-# 2. Wait for the API to be ready before opening Firefox
-# This prevents Firefox from showing a "Connection Refused" error on first load
-timeout 30s bash -c "until curl -s localhost:${OLE_GUI_PORT} > /dev/null; do sleep 1; done"
+# 2. Wait for the server to be ready
+timeout 15s bash -c "until curl -s localhost:$OLE_GUI_PORT > /dev/null; do sleep 1; done" || echo "Server taking a while..."
 
-# 3. Open the app in Firefox
-# We don't need to background this in a subshell with wait -n 
-firefox --new-window "http://127.0.0.1:${OLE_GUI_PORT}" &
+# 3. Launch Firefox with the sandbox disabled.
+# We point to 127.0.0.1 so it stays inside the container's network.
+firefox --no-sandbox --new-window "http://127.0.0.1:$OLE_GUI_PORT" &
 
-# 4. CRITICAL: Hand control back to the Kasm VNC startup process
-# This is what keeps the desktop session alive and prevents the "Unknown Service" loop
-/dockerstartup/vnc_startup.sh
+# 4. DO NOT call vnc_startup.sh here. 
+# Just exit. Kasm's parent process will keep the container alive.
+exit 0
