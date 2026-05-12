@@ -1,0 +1,18 @@
+{
+  "friendly_name": "Oletools GUI (Firefox)",
+  "image_src": "kasmweb/ole-gui:latest",
+  "description": "Analyze Office/RTF files with oletools from a browser-based Kasm Workspace.",
+  "cores": 2,
+  "memory": 3072,
+  "gpu_count": 0,
+  "cpu_allocation_method": "Inherit",
+  "docker_registry": "https://index.docker.io/v1/",
+  "categories": [
+    "Security",
+    "Utilities"
+  ],
+  "run_config": {
+    "hostname": "kasm-ole-gui"
+  },
+  "notes": "Firefox opens automatically to the app URL on startup."
+}

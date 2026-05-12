@@ -25,3 +25,25 @@ Open `http://localhost:8081`. Use another port if `8081` is already taken.
 ## Notes
 
 Treat uploaded files as untrusted. This app analyzes documents but does not sandbox Office itself. For hostile malware samples, run it inside an isolated VM/container and avoid exposing it publicly without authentication, rate limits, and storage cleanup.
+
+## Deploy as a Kasm Workspace
+
+This repository includes Kasm-specific container assets so the app can run as a Workspace with the built-in Firefox desktop/noVNC session.
+
+### 1) Build and push the workspace image
+
+```bash
+docker build -f Dockerfile.kasm -t <your-registry>/ole-gui:latest .
+docker push <your-registry>/ole-gui:latest
+```
+
+### 2) Import the workspace definition in Kasm
+
+1. Copy `kasm-workspace.json` and update:
+   - `image_src` to match the image you pushed.
+   - `docker_registry` if you are not using Docker Hub.
+2. In Kasm Admin, add a new Workspace from JSON and paste the updated definition.
+
+### 3) Launch and use
+
+When the Workspace starts, the app is served inside the container on port `8081` and Firefox opens `http://127.0.0.1:8081` automatically.
