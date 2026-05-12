@@ -6,7 +6,6 @@ const resultsPanel = document.querySelector("#resultsPanel");
 const appStatus = document.querySelector("#appStatus");
 const submitButton = document.querySelector("#submitButton");
 const resultTemplate = document.querySelector("#resultTemplate");
-const showRawOutputToggle = document.querySelector("#showRawOutput");
 
 const severityRank = { info: 0, low: 1, medium: 2, high: 3, error: 2 };
 
@@ -142,11 +141,7 @@ function renderResult(result) {
     body.appendChild(renderMacros(result.data.macros));
   }
 
-  if (result.key === "mraptor" && result.raw_output) {
-    body.appendChild(renderMacroRaptorSummary(result.raw_output, result.data?.exit_code));
-  }
-
-  if (result.raw_output && showRawOutputToggle.checked) {
+  if (result.raw_output) {
     body.appendChild(renderRawOutput(result.raw_output));
   }
 
@@ -162,70 +157,6 @@ function renderResult(result) {
   });
 
   return fragment;
-}
-
-function renderMacroRaptorSummary(rawOutput, exitCode) {
-  const parsed = parseMacroRaptorOutput(rawOutput);
-  const card = document.createElement("section");
-  card.className = "mraptor-summary";
-
-  const status = document.createElement("div");
-  status.className = "mraptor-status";
-  status.innerHTML = `
-    <strong>${escapeHtml(parsed.result || "Unknown result")}</strong>
-    <span>${escapeHtml(parsed.file || "Unknown file")}</span>
-  `;
-
-  const details = document.createElement("div");
-  details.className = "metadata";
-  details.innerHTML = `
-    <span>Flags: ${escapeHtml(parsed.flags || "---")}</span>
-    <span>Type: ${escapeHtml(parsed.type || "Unknown")}</span>
-    <span>Exit code: ${escapeHtml(exitCode ?? parsed.exitCodeText || "Unknown")}</span>
-  `;
-
-  card.append(status, details);
-
-  if (parsed.matches.length) {
-    const matches = document.createElement("div");
-    matches.className = "finding-list";
-    const item = document.createElement("div");
-    item.className = "finding low";
-    item.innerHTML = `<strong>Trigger keywords (${parsed.matches.length})</strong><span>${escapeHtml(parsed.matches.join(", "))}</span>`;
-    matches.appendChild(item);
-    card.appendChild(matches);
-  }
-
-  return card;
-}
-
-function parseMacroRaptorOutput(rawOutput) {
-  const parsed = { result: "", flags: "", type: "", file: "", matches: [], exitCodeText: "" };
-  for (const line of String(rawOutput || "").split(/\r?\n/)) {
-    const clean = line.trim();
-    if (!clean) continue;
-    const row = clean.match(/^(.+?)\s*\|\s*([AWX-]{3})\s*\|\s*([^|]+)\|\s*(.+)$/);
-    if (row) {
-      parsed.result = row[1].trim();
-      parsed.flags = row[2].trim();
-      parsed.type = row[3].trim();
-      parsed.file = row[4].trim();
-      continue;
-    }
-    if (/^Matches:\s*/i.test(clean)) {
-      const matchBlock = clean.replace(/^Matches:\s*/i, "").replace(/^\[|\]$/g, "");
-      parsed.matches = matchBlock
-        .split(",")
-        .map((v) => v.trim().replace(/^['"]|['"]$/g, ""))
-        .filter(Boolean);
-      continue;
-    }
-    const exit = clean.match(/^Exit code:\s*(\d+)/i);
-    if (exit) {
-      parsed.exitCodeText = exit[1];
-    }
-  }
-  return parsed;
 }
 
 
