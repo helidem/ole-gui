@@ -142,7 +142,9 @@ function renderResult(result) {
   }
 
   if (result.raw_output) {
-    body.appendChild(renderRawOutput(result.raw_output));
+    const pre = document.createElement("pre");
+    pre.textContent = result.raw_output;
+    body.appendChild(pre);
   }
 
   if (!body.children.length) {
@@ -157,27 +159,6 @@ function renderResult(result) {
   });
 
   return fragment;
-}
-
-
-function renderRawOutput(rawOutput) {
-  const card = document.createElement("section");
-  card.className = "raw-output";
-
-  const heading = document.createElement("div");
-  heading.className = "raw-output-heading";
-  heading.innerHTML = `<strong>Analyzer output</strong><small>Raw CLI stream</small>`;
-
-  const lines = document.createElement("ol");
-  lines.className = "raw-output-lines";
-  for (const line of String(rawOutput).split(/\r?\n/)) {
-    const item = document.createElement("li");
-    item.textContent = line || " ";
-    lines.appendChild(item);
-  }
-
-  card.append(heading, lines);
-  return card;
 }
 
 function renderTable(rows, columns) {
