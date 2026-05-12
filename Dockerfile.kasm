@@ -1,4 +1,4 @@
-FROM kasmweb/firefox:1.16.1
+FROM kasmweb/firefox:1.18.0
 
 USER root
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -10,6 +10,7 @@ RUN apt-get update \
         python3 \
         python3-venv \
         python3-pip \
+        curl \
         libxml2-dev \
         libxslt1-dev \
         zlib1g-dev \
