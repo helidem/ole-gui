@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Oletools GUI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>Oletools GUI</h1>
+            <p>Upload an Office or RTF document and run malware-focused oletools analyzers.</p>
+          </div>
+          <div class="status-pill" id="appStatus">Ready</div>
+        </header>
+
+        <section class="analysis-layout">
+          <form id="analyzeForm" class="upload-panel">
+            <label class="drop-zone" id="dropZone">
+              <input id="fileInput" name="file" type="file" required />
+              <span class="drop-icon">+</span>
+              <strong id="fileLabel">Choose a document</strong>
+              <span>DOC, DOCM, XLS, XLSM, XLSB, PPT, RTF, XML, MHT, ZIP and related formats</span>
+            </label>
+
+            <div class="field-grid">
+              <label>
+                ZIP password
+                <input id="zipPassword" type="password" autocomplete="off" placeholder="Optional" />
+              </label>
+              <label>
+                Office password
+                <input id="officePassword" type="password" autocomplete="off" placeholder="Optional" />
+              </label>
+            </div>
+
+            <fieldset class="tool-list">
+              <legend>Analyzers</legend>
+              <label><input type="checkbox" name="tool" value="oleid" checked /> OleID: Document Indicators</label>
+              <label><input type="checkbox" name="tool" value="olevba" checked /> OleVBA: Macro Analysis</label>
+              <label><input type="checkbox" name="tool" value="mraptor" checked /> MacroRaptor: Macro Heuristics</label>
+              <label><input type="checkbox" name="tool" value="objects" checked /> OleObj/RtfObj: Embedded Objects</label>
+            </fieldset>
+
+            <div class="option-row">
+              <label><input id="includeMacroSource" type="checkbox" checked /> Include macro source</label>
+              <label><input id="includeDecoded" type="checkbox" checked /> Decode strings</label>
+            </div>
+
+            <button class="primary-button" id="submitButton" type="submit">Analyze document</button>
+          </form>
+
+          <section class="results-panel" id="resultsPanel">
+            <div class="empty-state" id="emptyState">
+              <div class="empty-mark">OLE</div>
+              <h2>No analysis yet</h2>
+              <p>Select a file and run the analyzers. Results stay in this browser session.</p>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <template id="resultTemplate">
+      <article class="result-block">
+        <button class="result-heading" type="button">
+          <span>
+            <strong class="result-title"></strong>
+            <small class="result-summary"></small>
+          </span>
+          <span class="result-count"></span>
+        </button>
+        <div class="result-body"></div>
+      </article>
+    </template>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

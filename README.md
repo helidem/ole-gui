@@ -1,0 +1,27 @@
+# Oletools GUI
+
+A modular web UI for analyzing uploaded Office/RTF documents with `oletools`.
+
+## What It Runs
+
+- `oleid`: high-level OLE indicators such as macros, encryption, embedded objects, and Flash.
+- `olevba`: VBA/XLM macro detection, macro extraction, suspicious keyword analysis, auto-exec detection, obfuscation indicators, and IOCs.
+- `mraptor`: MacroRaptor A/W/X heuristic triage for suspicious macro behavior.
+- `oleobj` / `rtfobj`: embedded object reporting for Office and RTF files.
+
+The app is intentionally split into small analyzer classes under `app/analyzers`. Add a new tool by creating another `Analyzer` implementation and registering it in `app/analyzers/registry.py`.
+
+## Run Locally
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8081
+```
+
+Open `http://localhost:8081`. Use another port if `8081` is already taken.
+
+## Notes
+
+Treat uploaded files as untrusted. This app analyzes documents but does not sandbox Office itself. For hostile malware samples, run it inside an isolated VM/container and avoid exposing it publicly without authentication, rate limits, and storage cleanup.
