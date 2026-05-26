@@ -40,7 +40,7 @@ def tools() -> list[dict[str, str]]:
 @app.post("/api/analyze")
 async def analyze(
     file: UploadFile = File(...),
-    tools: str = Form("oleid,olevba,mraptor,objects"),
+    tools: str = Form("oleid,olevba,mraptor,objects,pdf_static"),
     zip_password: str | None = Form(None),
     office_password: str | None = Form(None),
     include_macro_source: bool = Form(True),

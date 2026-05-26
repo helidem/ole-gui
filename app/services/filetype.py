@@ -6,6 +6,7 @@ from pathlib import Path
 OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 ZIP_MAGIC = b"PK\x03\x04"
 RTF_MAGIC = b"{\\rtf"
+PDF_MAGIC = b"%PDF-"
 TEXT_MACRO_SUFFIXES = {".bas", ".cls", ".frm", ".vba", ".vb", ".vbs"}
 TEXT_CONTAINER_SUFFIXES = {".xml", ".mht", ".mhtml", ".slk"}
 
@@ -29,6 +30,11 @@ def is_office_like(path: str | Path, original_name: str) -> bool:
 
 def is_rtf(path: str | Path, original_name: str) -> bool:
     return read_head(path).lstrip().startswith(RTF_MAGIC) or Path(original_name.lower()).suffix == ".rtf"
+
+
+def is_pdf(path: str | Path, original_name: str) -> bool:
+    head = read_head(path)
+    return PDF_MAGIC in head[:1024] or Path(original_name.lower()).suffix == ".pdf"
 
 
 def is_probable_macro_source(path: str | Path, original_name: str) -> bool:

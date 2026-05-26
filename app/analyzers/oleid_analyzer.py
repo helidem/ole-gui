@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.analyzers.base import Analyzer, AnalyzerContext
 from app.models import AnalyzerResult, Finding, Severity
-from app.services.filetype import should_run_macro_analyzers
+from app.services.filetype import is_pdf, should_run_macro_analyzers
 
 
 def _severity_from_risk(risk: object, value: object) -> Severity:
@@ -35,6 +35,14 @@ class OleIdAnalyzer(Analyzer):
     description = "Identifies OLE traits such as macros, encryption, embedded objects, and Flash."
 
     def analyze(self, context: AnalyzerContext) -> AnalyzerResult:
+        if is_pdf(context.file_path, context.original_name):
+            return AnalyzerResult(
+                key=self.key,
+                label=self.label,
+                status="skipped",
+                summary="Skipped because the upload is a PDF, not an OLE/Office document.",
+            )
+
         try:
             from oletools.oleid import OleID
         except Exception as exc:

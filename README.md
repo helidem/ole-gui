@@ -1,6 +1,6 @@
 # Oletools GUI
 
-A modular web UI for analyzing uploaded Office/RTF documents with `oletools`.
+A modular web UI for analyzing uploaded Office/RTF/PDF documents with `oletools`-style static triage.
 
 ## What It Runs
 
@@ -8,6 +8,7 @@ A modular web UI for analyzing uploaded Office/RTF documents with `oletools`.
 - `olevba`: VBA/XLM macro detection, macro extraction, suspicious keyword analysis, auto-exec detection, obfuscation indicators, and IOCs.
 - `mraptor`: MacroRaptor A/W/X heuristic triage for suspicious macro behavior.
 - `oleobj` / `rtfobj`: embedded object reporting for Office and RTF files.
+- `PDF Static`: PDFiD/pdf-parser-inspired static triage for JavaScript, launch/open actions, embedded files, URIs, encryption, object streams, metadata, hashes, entropy, and incremental updates. If PyMuPDF is installed, it also reports parser-level metadata and embedded file details.
 
 The app is intentionally split into small analyzer classes under `app/analyzers`. Add a new tool by creating another `Analyzer` implementation and registering it in `app/analyzers/registry.py`.
 

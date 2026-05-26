@@ -5,6 +5,7 @@ from app.analyzers.mraptor_analyzer import MRaptorAnalyzer
 from app.analyzers.objects_analyzer import ObjectsAnalyzer
 from app.analyzers.oleid_analyzer import OleIdAnalyzer
 from app.analyzers.olevba_analyzer import OleVbaAnalyzer
+from app.analyzers.pdf_static_analyzer import PdfStaticAnalyzer
 
 
 ANALYZERS: dict[str, Analyzer] = {
@@ -14,6 +15,7 @@ ANALYZERS: dict[str, Analyzer] = {
         OleVbaAnalyzer(),
         MRaptorAnalyzer(),
         ObjectsAnalyzer(),
+        PdfStaticAnalyzer(),
     )
 }
 

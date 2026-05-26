@@ -5,6 +5,7 @@ import subprocess
 from app.analyzers.base import Analyzer, AnalyzerContext
 from app.analyzers.cli_analyzer import cli_error_result, password_args, run_module
 from app.models import AnalyzerResult, Finding, Severity
+from app.services.filetype import is_pdf
 
 
 class ObjectsAnalyzer(Analyzer):
@@ -13,6 +14,14 @@ class ObjectsAnalyzer(Analyzer):
     description = "Reports embedded OLE/package objects using oleobj or rtfobj."
 
     def analyze(self, context: AnalyzerContext) -> AnalyzerResult:
+        if is_pdf(context.file_path, context.original_name):
+            return AnalyzerResult(
+                key=self.key,
+                label=self.label,
+                status="skipped",
+                summary="Skipped because the upload is a PDF, not an Office/RTF object container.",
+            )
+
         suffix = context.original_name.lower().rsplit(".", 1)[-1] if "." in context.original_name else ""
         module = "oletools.rtfobj" if suffix == "rtf" else "oletools.oleobj"
         label = "rtfobj" if suffix == "rtf" else "oleobj"

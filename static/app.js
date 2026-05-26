@@ -133,6 +133,34 @@ function renderResult(result) {
     body.appendChild(renderTable(result.data.indicators, ["name", "value", "risk", "description"]));
   }
 
+  if (result.data?.file) {
+    body.appendChild(renderKeyValueTable(result.data.file, "File"));
+  }
+
+  if (result.data?.structure?.length) {
+    body.appendChild(renderTable(result.data.structure, ["name", "count"]));
+  }
+
+  if (result.data?.keyword_counts?.length) {
+    body.appendChild(renderTable(result.data.keyword_counts, ["keyword", "count", "obfuscated"]));
+  }
+
+  if (result.data?.uris?.length) {
+    body.appendChild(renderTable(result.data.uris, ["uri"]));
+  }
+
+  if (result.data?.metadata?.length) {
+    body.appendChild(renderTable(result.data.metadata, ["field", "value"]));
+  }
+
+  if (result.data?.embedded_files?.length) {
+    body.appendChild(renderTable(result.data.embedded_files, ["name", "size", "description"]));
+  }
+
+  if (result.data?.pymupdf) {
+    body.appendChild(renderPyMuPdf(result.data.pymupdf));
+  }
+
   if (result.data?.analysis?.length) {
     body.appendChild(renderTable(result.data.analysis, ["type", "keyword", "description", "severity"]));
   }
@@ -176,6 +204,44 @@ function renderTable(rows, columns) {
     body.appendChild(tr);
   }
   wrap.appendChild(table);
+  return wrap;
+}
+
+function renderKeyValueTable(values, title) {
+  const rows = Object.entries(values).map(([key, value]) => ({ key, value }));
+  const wrap = document.createElement("section");
+  wrap.className = "detail-section";
+  const heading = document.createElement("h3");
+  heading.textContent = title;
+  wrap.append(heading, renderTable(rows, ["key", "value"]));
+  return wrap;
+}
+
+function renderPyMuPdf(details) {
+  const wrap = document.createElement("section");
+  wrap.className = "detail-section";
+  const heading = document.createElement("h3");
+  heading.textContent = "PyMuPDF";
+  wrap.appendChild(heading);
+
+  const summary = {
+    available: details.available,
+    page_count: details.page_count,
+    is_encrypted: details.is_encrypted,
+    needs_password: details.needs_password,
+    authenticated: details.authenticated,
+    error: details.error,
+  };
+  wrap.appendChild(renderTable(
+    Object.entries(summary)
+      .filter(([, value]) => value !== undefined && value !== null && value !== "")
+      .map(([key, value]) => ({ key, value })),
+    ["key", "value"],
+  ));
+
+  if (details.metadata && Object.keys(details.metadata).length) {
+    wrap.appendChild(renderKeyValueTable(details.metadata, "PyMuPDF metadata"));
+  }
   return wrap;
 }
 

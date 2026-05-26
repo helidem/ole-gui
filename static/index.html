@@ -23,7 +23,7 @@
               <input id="fileInput" name="file" type="file" required />
               <span class="drop-icon">+</span>
               <strong id="fileLabel">Choose a document</strong>
-              <span>DOC, DOCM, XLS, XLSM, XLSB, PPT, RTF, XML, MHT, ZIP and related formats</span>
+              <span>DOC, DOCM, XLS, XLSM, XLSB, PPT, RTF, PDF, XML, MHT, ZIP and related formats</span>
             </label>
 
             <div class="field-grid">
@@ -43,6 +43,7 @@
               <label><input type="checkbox" name="tool" value="olevba" checked /> OleVBA: Macro Analysis</label>
               <label><input type="checkbox" name="tool" value="mraptor" checked /> MacroRaptor: Macro Heuristics</label>
               <label><input type="checkbox" name="tool" value="objects" checked /> OleObj/RtfObj: Embedded Objects</label>
+              <label><input type="checkbox" name="tool" value="pdf_static" checked /> PDF Static: Structure and Actions</label>
             </fieldset>
 
             <div class="option-row">
@@ -55,7 +56,7 @@
 
           <section class="results-panel" id="resultsPanel">
             <div class="empty-state" id="emptyState">
-              <div class="empty-mark">OLE</div>
+              <div class="empty-mark">DOC</div>
               <h2>No analysis yet</h2>
               <p>Select a file and run the analyzers. Results stay in this browser session.</p>
             </div>

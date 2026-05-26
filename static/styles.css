@@ -460,6 +460,16 @@ pre {
   gap: 8px;
 }
 
+.detail-section {
+  display: grid;
+  gap: 8px;
+}
+
+.detail-section h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
 .macro-item h3 {
   margin: 0;
   font-size: 0.95rem;
