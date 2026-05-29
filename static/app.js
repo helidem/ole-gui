@@ -154,7 +154,7 @@ function renderResult(result) {
   }
 
   if (result.data?.embedded_files?.length) {
-    body.appendChild(renderTable(result.data.embedded_files, ["name", "size", "description"]));
+    body.appendChild(renderEmbeddedFiles(result.data.embedded_files));
   }
 
   if (result.data?.pymupdf) {
@@ -214,6 +214,31 @@ function renderKeyValueTable(values, title) {
   const heading = document.createElement("h3");
   heading.textContent = title;
   wrap.append(heading, renderTable(rows, ["key", "value"]));
+  return wrap;
+}
+
+function renderEmbeddedFiles(files) {
+  const wrap = document.createElement("section");
+  wrap.className = "detail-section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Embedded files analysis";
+  wrap.appendChild(heading);
+  wrap.appendChild(renderTable(files, [
+    "index",
+    "name",
+    "size",
+    "declared_size",
+    "magic",
+    "entropy",
+    "risk",
+    "risk_reason",
+    "md5",
+    "sha1",
+    "sha256",
+    "first_bytes_hex",
+    "printable_preview",
+    "description",
+  ]));
   return wrap;
 }
 

@@ -66,6 +66,39 @@ MEDIUM_RISK_KEYWORDS = {
 }
 
 SUSPICIOUS_URI_SCHEMES = ("http://", "https://", "ftp://", "file://", "mailto:")
+HIGH_RISK_EMBEDDED_EXTENSIONS = {
+    ".exe",
+    ".dll",
+    ".scr",
+    ".com",
+    ".bat",
+    ".cmd",
+    ".ps1",
+    ".vbs",
+    ".js",
+    ".jse",
+    ".wsf",
+    ".hta",
+    ".lnk",
+    ".jar",
+    ".iso",
+    ".img",
+}
+MEDIUM_RISK_EMBEDDED_EXTENSIONS = {
+    ".doc",
+    ".docm",
+    ".xls",
+    ".xlsm",
+    ".xlsb",
+    ".ppt",
+    ".pptm",
+    ".rtf",
+    ".pdf",
+    ".zip",
+    ".rar",
+    ".7z",
+}
+PRINTABLE_RE = re.compile(rb"[\x20-\x7e]{4,}")
 NAME_TOKEN_RE = re.compile(rb"/(?:#(?:[0-9A-Fa-f]{2})|[^\s<>\[\]\(\)/%#])+")
 URI_RE = re.compile(
     rb"(?:(?:https?|ftp|file)://|mailto:)[^\s<>\]\[()\"']{3,}",
@@ -160,6 +193,75 @@ def _hashes(data: bytes) -> dict[str, str]:
     }
 
 
+def _magic_type(data: bytes) -> str:
+    signatures = (
+        (b"MZ", "Windows executable / DLL"),
+        (b"%PDF-", "PDF document"),
+        (b"PK\x03\x04", "ZIP / OOXML / JAR archive"),
+        (b"PK\x05\x06", "empty ZIP archive"),
+        (b"PK\x07\x08", "spanned ZIP archive"),
+        (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "OLE / legacy Office document"),
+        (b"{\\rtf", "RTF document"),
+        (b"\x7fELF", "ELF executable"),
+        (b"\x1f\x8b", "GZIP archive"),
+        (b"Rar!", "RAR archive"),
+        (b"7z\xbc\xaf\x27\x1c", "7-Zip archive"),
+    )
+    for prefix, label in signatures:
+        if data.startswith(prefix):
+            return label
+    if data[:256].lstrip().lower().startswith((b"<html", b"<!doctype html")):
+        return "HTML document"
+    if data[:256].lstrip().lower().startswith((b"function ", b"var ", b"let ", b"const ", b"//", b"/*")):
+        return "JavaScript / script text"
+    return "unknown"
+
+
+def _printable_preview(data: bytes, limit: int = 5) -> list[str]:
+    preview: list[str] = []
+    for match in PRINTABLE_RE.finditer(data[:8192]):
+        value = match.group(0).decode("latin-1", errors="replace").strip()
+        if value:
+            preview.append(value[:160])
+        if len(preview) >= limit:
+            break
+    return preview
+
+
+def _embedded_file_risk(name: str, magic: str, entropy: float) -> tuple[str, str]:
+    suffix = Path(name.lower()).suffix
+    if suffix in HIGH_RISK_EMBEDDED_EXTENSIONS or "executable" in magic.lower():
+        return "high", "Embedded payload has an executable/script/disk-image extension or executable magic bytes."
+    if suffix in MEDIUM_RISK_EMBEDDED_EXTENSIONS or magic != "unknown":
+        return "medium", "Embedded payload is a document/archive or has identifiable active-content file magic."
+    if entropy >= 7.5:
+        return "medium", "Embedded payload has high entropy and may be compressed, encrypted, or packed."
+    return "low", "Embedded payload present; review filename, hashes, and preview."
+
+
+def _analyze_embedded_payload(index: int, info: dict[str, Any], payload: bytes) -> dict[str, Any]:
+    name = info.get("filename") or info.get("ufilename") or f"embedded-{index}"
+    magic = _magic_type(payload)
+    entropy = round(_entropy(payload), 3)
+    severity, reason = _embedded_file_risk(str(name), magic, entropy)
+    return {
+        "index": index,
+        "name": str(name),
+        "size": len(payload),
+        "declared_size": info.get("size"),
+        "description": info.get("desc"),
+        "created": info.get("creationDate"),
+        "modified": info.get("modDate"),
+        "magic": magic,
+        "entropy": entropy,
+        "risk": severity,
+        "risk_reason": reason,
+        "first_bytes_hex": payload[:32].hex(" "),
+        "printable_preview": _printable_preview(payload),
+        **_hashes(payload),
+    }
+
+
 def _pymupdf_details(path: str, password: str | None) -> dict[str, Any]:
     try:
         import fitz  # type: ignore[import-not-found]
@@ -183,13 +285,21 @@ def _pymupdf_details(path: str, password: str | None) -> dict[str, Any]:
                 embedded = []
                 for index in range(getattr(doc, "embfile_count", lambda: 0)()):
                     info = doc.embfile_info(index)
-                    embedded.append(
-                        {
-                            "name": info.get("filename") or info.get("ufilename") or f"embedded-{index}",
-                            "size": info.get("size"),
-                            "description": info.get("desc"),
-                        }
-                    )
+                    try:
+                        payload = doc.embfile_get(index)
+                        embedded.append(_analyze_embedded_payload(index, info, payload))
+                    except Exception as exc:
+                        name = info.get("filename") or info.get("ufilename") or f"embedded-{index}"
+                        embedded.append(
+                            {
+                                "index": index,
+                                "name": str(name),
+                                "size": info.get("size"),
+                                "description": info.get("desc"),
+                                "risk": "medium",
+                                "risk_reason": f"Embedded file is present but could not be extracted for analysis: {exc}",
+                            }
+                        )
                 details["embedded_files"] = embedded
             return details
     except Exception as exc:
@@ -280,16 +390,39 @@ class PdfStaticAnalyzer(Analyzer):
 
         pymupdf = _pymupdf_details(context.file_path, context.options.office_password)
         embedded_files = pymupdf.get("embedded_files") if isinstance(pymupdf.get("embedded_files"), list) else []
-        if embedded_files and not keyword_counts.get("/EmbeddedFile"):
-            findings.append(
-                Finding(
-                    analyzer=self.key,
-                    title="Embedded files reported by PyMuPDF",
-                    severity=Severity.high,
-                    detail="The PDF contains embedded file entries.",
-                    value=len(embedded_files),
+        if embedded_files:
+            if not keyword_counts.get("/EmbeddedFile"):
+                findings.append(
+                    Finding(
+                        analyzer=self.key,
+                        title="Embedded files reported by PyMuPDF",
+                        severity=Severity.high,
+                        detail="The PDF contains embedded file entries.",
+                        value=len(embedded_files),
+                    )
                 )
-            )
+            high_risk_embedded = [item for item in embedded_files if item.get("risk") == "high"]
+            medium_risk_embedded = [item for item in embedded_files if item.get("risk") == "medium"]
+            if high_risk_embedded:
+                findings.append(
+                    Finding(
+                        analyzer=self.key,
+                        title="High-risk embedded payloads",
+                        severity=Severity.high,
+                        detail="One or more embedded files look executable or script-like.",
+                        value=[item.get("name") for item in high_risk_embedded],
+                    )
+                )
+            elif medium_risk_embedded:
+                findings.append(
+                    Finding(
+                        analyzer=self.key,
+                        title="Embedded payloads need review",
+                        severity=Severity.medium,
+                        detail="One or more embedded files are documents, archives, identifiable payloads, or high-entropy content.",
+                        value=[item.get("name") for item in medium_risk_embedded],
+                    )
+                )
 
         summary = "PDF static triage completed."
         if findings:
