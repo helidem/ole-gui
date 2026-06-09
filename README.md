@@ -1,6 +1,6 @@
 # Oletools GUI
 
-Version: 1.1
+Version: 1.2
 
 A modular triage web UI for analyzing one or many uploaded Office/RTF/PDF documents with `oletools`-style static triage.
 
@@ -10,7 +10,7 @@ A modular triage web UI for analyzing one or many uploaded Office/RTF/PDF docume
 - `olevba`: VBA/XLM macro detection, macro extraction, suspicious keyword analysis, auto-exec detection, obfuscation indicators, and IOCs.
 - `mraptor`: MacroRaptor A/W/X heuristic triage for suspicious macro behavior.
 - `oleobj` / `rtfobj`: embedded object reporting for Office and RTF files.
-- `PDF Static`: PDFiD/pdf-parser-inspired static triage for JavaScript, launch/open actions, embedded files, URIs, encryption, object streams, metadata, hashes, entropy, and incremental updates. OpenAction entries are decoded to show whether they are benign view destinations (page/fit mode) or higher-risk action dictionaries (JavaScript, Launch, URI, SubmitForm, remote GoTo, etc.). If PyMuPDF is installed, it also extracts embedded file bytes in-memory and reports filename, size, magic type, entropy, MD5/SHA1/SHA256, first bytes, printable preview, and risk classification directly in the UI.
+- `PDF Static`: PDFiD/pdf-parser-inspired static triage for JavaScript, launch actions, embedded files, URIs, encryption, object streams, metadata, hashes, entropy, and incremental updates. OpenAction entries and `/AA` additional action dictionaries are decoded to show whether they are benign view/navigation events or higher-risk action dictionaries (JavaScript, Launch, URI, SubmitForm, remote GoTo, etc.). If PyMuPDF is installed, it also extracts embedded file bytes in-memory and reports filename, size, magic type, entropy, MD5/SHA1/SHA256, first bytes, printable preview, and risk classification directly in the UI.
 
 The app is intentionally split into small analyzer classes under `app/analyzers`. Add a new tool by creating another `Analyzer` implementation and registering it in `app/analyzers/registry.py`.
 

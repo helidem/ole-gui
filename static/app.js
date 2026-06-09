@@ -157,7 +157,7 @@ function renderTriage(payload) {
     </div>
     <div class="metadata">
       <span>${reports.length} file(s)</span>
-      <span>Tool v${escapeHtml(payload.app_version || "1.1")}</span>
+      <span>Tool v${escapeHtml(payload.app_version || "1.2")}</span>
       <span>${autoTools.checked ? "Auto analyzer selection" : "Manual analyzer selection"}</span>
     </div>
   `;
@@ -217,7 +217,7 @@ function renderReportHeader(report) {
       <span>${escapeHtml(report.file.content_type || "Unknown type")}</span>
       <span>${report.results.length} analyzers</span>
       <span>${escapeHtml(selected)}</span>
-      <span>Tool v${escapeHtml(report.app_version || "1.1")}</span>
+      <span>Tool v${escapeHtml(report.app_version || "1.2")}</span>
     </div>
   `;
   return header;
@@ -274,6 +274,10 @@ function renderResult(result) {
 
   if (result.data?.open_action?.present) {
     body.appendChild(renderOpenAction(result.data.open_action));
+  }
+
+  if (result.data?.additional_actions?.present) {
+    body.appendChild(renderAdditionalActions(result.data.additional_actions));
   }
 
   if (result.data?.uris?.length) {
@@ -376,6 +380,48 @@ function renderOpenAction(details) {
     const pre = document.createElement("pre");
     pre.textContent = JSON.stringify(details.raw, null, 2);
     wrap.appendChild(pre);
+  }
+  return wrap;
+}
+
+function renderAdditionalActions(details) {
+  const wrap = document.createElement("section");
+  wrap.className = "detail-section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Additional Actions (/AA) details";
+  wrap.appendChild(heading);
+
+  const summary = {
+    present: details.present,
+    count: details.count,
+    risk: details.risk,
+    summary: details.summary,
+    error: details.error,
+  };
+  wrap.appendChild(renderTable(
+    Object.entries(summary)
+      .filter(([, value]) => value !== undefined && value !== null && value !== "")
+      .map(([key, value]) => ({ key, value })),
+    ["key", "value"],
+  ));
+
+  if (details.actions?.length) {
+    wrap.appendChild(renderTable(
+      details.actions.map((action) => ({
+        owner: action.owner,
+        owner_ref: action.owner_ref,
+        event: action.event,
+        event_description: action.event_description,
+        kind: action.kind,
+        action_type: action.action_type,
+        risk: action.risk,
+        target_page: action.target_page,
+        fit_mode: action.fit_mode,
+        summary: action.summary,
+        raw: action.raw,
+      })),
+      ["owner", "owner_ref", "event", "event_description", "kind", "action_type", "risk", "target_page", "fit_mode", "summary", "raw"],
+    ));
   }
   return wrap;
 }

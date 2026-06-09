@@ -66,6 +66,25 @@ MEDIUM_RISK_KEYWORDS = {
 }
 
 SUSPICIOUS_URI_SCHEMES = ("http://", "https://", "ftp://", "file://", "mailto:")
+HIGH_RISK_ACTION_TYPES = {"/JavaScript", "/Launch"}
+MEDIUM_RISK_ACTION_TYPES = {"/URI", "/SubmitForm", "/GoToR", "/GoToE", "/ImportData"}
+ADDITIONAL_ACTION_EVENTS = {
+    "/O": "page opened",
+    "/C": "page closed",
+    "/E": "cursor enters annotation area",
+    "/X": "cursor exits annotation area",
+    "/D": "mouse button pressed/down",
+    "/U": "mouse button released/up",
+    "/Fo": "field receives focus",
+    "/Bl": "field loses focus",
+    "/PO": "page opened (page object)",
+    "/PC": "page closed (page object)",
+    "/PV": "page becomes visible",
+    "/PI": "page becomes invisible",
+    "/K": "keystroke in text field",
+    "/F": "field formatting",
+    "/V": "field value changed",
+}
 HIGH_RISK_EMBEDDED_EXTENSIONS = {
     ".exe",
     ".dll",
@@ -365,9 +384,9 @@ def _describe_open_action(raw_action: Any, reader: Any) -> dict[str, Any]:
         action_type = str(raw_action.get("/S", "unknown"))
         details["kind"] = "action"
         details["action_type"] = action_type
-        if action_type in {"/JavaScript", "/Launch"}:
+        if action_type in HIGH_RISK_ACTION_TYPES:
             details["risk"] = "high"
-        elif action_type in {"/URI", "/SubmitForm", "/GoToR", "/GoToE", "/ImportData"}:
+        elif action_type in MEDIUM_RISK_ACTION_TYPES:
             details["risk"] = "medium"
         else:
             details["risk"] = "low"
@@ -401,6 +420,141 @@ def _open_action_details(path: str) -> dict[str, Any]:
         return {"present": None, "available": True, "error": str(exc)}
 
 
+def _object_ref(value: Any) -> str | None:
+    ref = getattr(value, "indirect_reference", None) or getattr(value, "indirectRef", None)
+    if ref is None and value.__class__.__name__ == "IndirectObject":
+        ref = value
+    if ref is not None and getattr(ref, "idnum", None) is not None:
+        return f"{ref.idnum} {ref.generation} R"
+    return None
+
+
+def _resolve_pdf_object(value: Any) -> Any:
+    if hasattr(value, "get_object") and value.__class__.__name__ == "IndirectObject":
+        return value.get_object()
+    return value
+
+
+def _action_risk(action_type: str) -> str:
+    if action_type in HIGH_RISK_ACTION_TYPES:
+        return "high"
+    if action_type in MEDIUM_RISK_ACTION_TYPES:
+        return "medium"
+    return "low"
+
+
+def _describe_action_value(action: Any, reader: Any) -> dict[str, Any]:
+    raw_action = _resolve_pdf_object(action)
+    serialized = _open_action_value(action, reader)
+    details: dict[str, Any] = {"raw": serialized}
+
+    if isinstance(raw_action, (list, tuple)):
+        fit_mode = str(raw_action[1]) if len(raw_action) > 1 else None
+        target_page = _page_number_for_ref(reader, raw_action[0]) if raw_action else None
+        details.update(
+            {
+                "kind": "destination",
+                "risk": "low",
+                "target_page": target_page,
+                "fit_mode": fit_mode,
+                "summary": f"Navigates to page {target_page or 'unknown'} with view mode {fit_mode or 'default'}; this controls viewer navigation only.",
+            }
+        )
+        return details
+
+    if isinstance(raw_action, dict):
+        action_type = str(raw_action.get("/S", "unknown"))
+        details.update({"kind": "action", "action_type": action_type, "risk": _action_risk(action_type)})
+        extra = []
+        for key in ("/URI", "/JS", "/F", "/D", "/T"):
+            if key in raw_action:
+                extra.append(f"{key}={_open_action_value(raw_action[key], reader)}")
+        details["summary"] = f"Runs action dictionary with action type {action_type}" + (f" ({'; '.join(extra)})" if extra else ".")
+        return details
+
+    details.update({"kind": "unknown", "risk": "medium", "summary": f"Action value could not be fully classified: {serialized}"})
+    return details
+
+
+def _append_additional_actions(rows: list[dict[str, Any]], owner: str, owner_ref: str | None, aa_dict: Any, reader: Any) -> None:
+    resolved = _resolve_pdf_object(aa_dict)
+    if not isinstance(resolved, dict):
+        return
+    for event_key, action in resolved.items():
+        event = str(event_key)
+        action_details = _describe_action_value(action, reader)
+        rows.append(
+            {
+                "owner": owner,
+                "owner_ref": owner_ref,
+                "event": event,
+                "event_description": ADDITIONAL_ACTION_EVENTS.get(event, "additional action event"),
+                **action_details,
+            }
+        )
+
+
+def _walk_form_fields(fields: Any) -> list[Any]:
+    items: list[Any] = []
+    for field in fields or []:
+        resolved = _resolve_pdf_object(field)
+        if not isinstance(resolved, dict):
+            continue
+        items.append(field)
+        items.extend(_walk_form_fields(resolved.get("/Kids", [])))
+    return items
+
+
+def _additional_action_details(path: str) -> dict[str, Any]:
+    try:
+        from pypdf import PdfReader  # type: ignore[import-not-found]
+    except Exception as exc:
+        return {"present": None, "available": False, "error": f"pypdf unavailable: {exc}", "actions": []}
+
+    try:
+        reader = PdfReader(path)
+        root = reader.trailer.get("/Root", {})
+        actions: list[dict[str, Any]] = []
+
+        if root.get("/AA") is not None:
+            _append_additional_actions(actions, "catalog", _object_ref(root), root.get("/AA"), reader)
+
+        acroform = _resolve_pdf_object(root.get("/AcroForm")) if root.get("/AcroForm") is not None else None
+        if isinstance(acroform, dict):
+            if acroform.get("/AA") is not None:
+                _append_additional_actions(actions, "acroform", _object_ref(acroform), acroform.get("/AA"), reader)
+            for index, field in enumerate(_walk_form_fields(acroform.get("/Fields", [])), start=1):
+                field_obj = _resolve_pdf_object(field)
+                if isinstance(field_obj, dict) and field_obj.get("/AA") is not None:
+                    field_name = field_obj.get("/T") or f"field {index}"
+                    _append_additional_actions(actions, f"form field {field_name}", _object_ref(field), field_obj.get("/AA"), reader)
+
+        for page_index, page in enumerate(reader.pages, start=1):
+            if page.get("/AA") is not None:
+                _append_additional_actions(actions, f"page {page_index}", _object_ref(page), page.get("/AA"), reader)
+            for annot_index, annot in enumerate(page.get("/Annots", []) or [], start=1):
+                annot_obj = _resolve_pdf_object(annot)
+                if isinstance(annot_obj, dict) and annot_obj.get("/AA") is not None:
+                    subtype = annot_obj.get("/Subtype", "annotation")
+                    _append_additional_actions(actions, f"page {page_index} annotation {annot_index} {subtype}", _object_ref(annot), annot_obj.get("/AA"), reader)
+
+        risk = "low"
+        if any(action.get("risk") == "high" for action in actions):
+            risk = "high"
+        elif any(action.get("risk") == "medium" for action in actions):
+            risk = "medium"
+        return {
+            "present": bool(actions),
+            "available": True,
+            "count": len(actions),
+            "risk": risk if actions else None,
+            "summary": f"Decoded {len(actions)} additional action event(s)." if actions else "No decoded additional actions found.",
+            "actions": actions,
+        }
+    except Exception as exc:
+        return {"present": None, "available": True, "error": str(exc), "actions": []}
+
+
 class PdfStaticAnalyzer(Analyzer):
     key = "pdf_static"
     label = "PDF Static: Structure and Actions"
@@ -424,6 +578,7 @@ class PdfStaticAnalyzer(Analyzer):
         trailer_count = data.count(b"trailer")
         findings: list[Finding] = []
         open_action = _open_action_details(context.file_path)
+        additional_actions = _additional_action_details(context.file_path)
 
         for keyword, detail in HIGH_RISK_KEYWORDS.items():
             count = keyword_counts.get(keyword, 0)
@@ -443,6 +598,23 @@ class PdfStaticAnalyzer(Analyzer):
                         severity=severity,
                         detail=open_action.get("summary") or detail,
                         value=open_action if open_action.get("present") is not None else count,
+                    )
+                )
+                continue
+            if keyword == "/AA":
+                risk = additional_actions.get("risk")
+                severity = Severity.high
+                if risk == "low":
+                    severity = Severity.low
+                elif risk == "medium":
+                    severity = Severity.medium
+                findings.append(
+                    Finding(
+                        analyzer=self.key,
+                        title="/AA additional actions present",
+                        severity=severity,
+                        detail=additional_actions.get("summary") or detail,
+                        value=additional_actions if additional_actions.get("present") is not None else count,
                     )
                 )
                 continue
@@ -556,6 +728,7 @@ class PdfStaticAnalyzer(Analyzer):
             ],
             "keyword_counts": keyword_rows,
             "open_action": open_action,
+            "additional_actions": additional_actions,
             "uris": uris,
             "metadata": _extract_metadata(data),
             "pymupdf": pymupdf,
