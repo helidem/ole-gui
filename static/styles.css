@@ -63,6 +63,18 @@ h1 {
   letter-spacing: 0;
 }
 
+.version-badge {
+  display: inline-block;
+  vertical-align: middle;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 5px 10px;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
 .topbar p {
   margin-top: 10px;
   max-width: 720px;

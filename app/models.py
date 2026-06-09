@@ -48,6 +48,7 @@ class AnalysisOptions(BaseModel):
 
 
 class AnalysisResponse(BaseModel):
+    app_version: str
     file: UploadedFileInfo
     risk: Severity
     summary: str

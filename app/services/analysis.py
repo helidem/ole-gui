@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.analyzers.base import AnalyzerContext
 from app.analyzers.registry import selected_analyzers
-from app.config import DEFAULT_TOOLS
+from app.config import APP_VERSION, DEFAULT_TOOLS
 from app.models import AnalysisOptions, AnalysisResponse, AnalyzerResult, UploadedFileInfo
 from app.services.risk import max_severity, summarize
 
@@ -22,6 +22,7 @@ def analyze_file(path: Path, file_info: UploadedFileInfo, options: AnalysisOptio
 
     risk = max_severity(results)
     return AnalysisResponse(
+        app_version=APP_VERSION,
         file=file_info,
         risk=risk,
         summary=summarize(results, risk),

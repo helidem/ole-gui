@@ -97,6 +97,7 @@ function renderReport(report) {
       <span>${formatBytes(report.file.size)}</span>
       <span>${escapeHtml(report.file.content_type || "Unknown type")}</span>
       <span>${report.results.length} analyzers</span>
+      <span>Tool v${escapeHtml(report.app_version || "1.0")}</span>
     </div>
   `;
   resultsPanel.appendChild(header);
@@ -143,6 +144,10 @@ function renderResult(result) {
 
   if (result.data?.keyword_counts?.length) {
     body.appendChild(renderTable(result.data.keyword_counts, ["keyword", "count", "obfuscated"]));
+  }
+
+  if (result.data?.open_action?.present) {
+    body.appendChild(renderOpenAction(result.data.open_action));
   }
 
   if (result.data?.uris?.length) {
@@ -214,6 +219,38 @@ function renderKeyValueTable(values, title) {
   const heading = document.createElement("h3");
   heading.textContent = title;
   wrap.append(heading, renderTable(rows, ["key", "value"]));
+  return wrap;
+}
+
+function renderOpenAction(details) {
+  const wrap = document.createElement("section");
+  wrap.className = "detail-section";
+  const heading = document.createElement("h3");
+  heading.textContent = "OpenAction details";
+  wrap.appendChild(heading);
+
+  const summary = {
+    present: details.present,
+    kind: details.kind,
+    action_type: details.action_type,
+    risk: details.risk,
+    target_page: details.target_page,
+    fit_mode: details.fit_mode,
+    summary: details.summary,
+    error: details.error,
+  };
+  wrap.appendChild(renderTable(
+    Object.entries(summary)
+      .filter(([, value]) => value !== undefined && value !== null && value !== "")
+      .map(([key, value]) => ({ key, value })),
+    ["key", "value"],
+  ));
+
+  if (details.raw !== undefined) {
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(details.raw, null, 2);
+    wrap.appendChild(pre);
+  }
   return wrap;
 }
 

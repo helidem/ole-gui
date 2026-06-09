@@ -6,13 +6,13 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.analyzers.registry import ANALYZERS
-from app.config import STATIC_DIR
+from app.config import APP_VERSION, STATIC_DIR
 from app.models import AnalysisOptions
 from app.services.analysis import analyze_file
 from app.services.storage import save_upload
 
 
-app = FastAPI(title="Oletools GUI", version="0.1.0")
+app = FastAPI(title="Oletools GUI", version=APP_VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,6 +27,11 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/api/version")
+def version() -> dict[str, str]:
+    return {"version": APP_VERSION}
 
 
 @app.get("/api/tools")

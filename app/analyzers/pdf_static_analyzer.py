@@ -306,6 +306,101 @@ def _pymupdf_details(path: str, password: str | None) -> dict[str, Any]:
         return {"available": True, "error": str(exc)}
 
 
+def _page_number_for_ref(reader: Any, ref: Any) -> int | None:
+    ref_id = getattr(ref, "idnum", None)
+    ref_gen = getattr(ref, "generation", None)
+    if ref_id is None:
+        return None
+    for index, page in enumerate(reader.pages, start=1):
+        page_ref = getattr(page, "indirect_reference", None) or getattr(page, "indirectRef", None)
+        if getattr(page_ref, "idnum", None) == ref_id and getattr(page_ref, "generation", None) == ref_gen:
+            return index
+    return None
+
+
+def _open_action_value(value: Any, reader: Any | None = None, depth: int = 0) -> Any:
+    if depth > 4:
+        return str(value)
+    if value is None:
+        return None
+    if hasattr(value, "get_object") and value.__class__.__name__ == "IndirectObject":
+        object_ref = f"{value.idnum} {value.generation} R"
+        page_number = _page_number_for_ref(reader, value) if reader is not None else None
+        if page_number:
+            return {"object_ref": object_ref, "type": "page", "page_number": page_number}
+        resolved = value.get_object()
+        serialized = _open_action_value(resolved, reader, depth + 1)
+        if isinstance(serialized, dict):
+            serialized.setdefault("object_ref", object_ref)
+        return serialized
+    if isinstance(value, dict):
+        return {str(key): _open_action_value(item, reader, depth + 1) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_open_action_value(item, reader, depth + 1) for item in value]
+    class_name = value.__class__.__name__
+    if class_name == "NullObject":
+        return None
+    return str(value)
+
+
+def _describe_open_action(raw_action: Any, reader: Any) -> dict[str, Any]:
+    serialized = _open_action_value(raw_action, reader)
+    details: dict[str, Any] = {"present": True, "raw": serialized}
+
+    if isinstance(raw_action, (list, tuple)):
+        fit_mode = str(raw_action[1]) if len(raw_action) > 1 else None
+        target_page = _page_number_for_ref(reader, raw_action[0]) if raw_action else None
+        details.update(
+            {
+                "kind": "destination",
+                "risk": "low",
+                "target_page": target_page,
+                "fit_mode": fit_mode,
+                "summary": f"Opens to page {target_page or 'unknown'} with view mode {fit_mode or 'default'}; this controls initial view only.",
+            }
+        )
+        return details
+
+    if isinstance(raw_action, dict):
+        action_type = str(raw_action.get("/S", "unknown"))
+        details["kind"] = "action"
+        details["action_type"] = action_type
+        if action_type in {"/JavaScript", "/Launch"}:
+            details["risk"] = "high"
+        elif action_type in {"/URI", "/SubmitForm", "/GoToR", "/GoToE", "/ImportData"}:
+            details["risk"] = "medium"
+        else:
+            details["risk"] = "low"
+        extra = []
+        for key in ("/URI", "/JS", "/F", "/D"):
+            if key in raw_action:
+                extra.append(f"{key}={_open_action_value(raw_action[key], reader)}")
+        details["summary"] = f"Runs OpenAction dictionary with action type {action_type}" + (f" ({'; '.join(extra)})" if extra else ".")
+        return details
+
+    details.update({"kind": "unknown", "risk": "medium", "summary": f"OpenAction is present but could not be fully classified: {serialized}"})
+    return details
+
+
+def _open_action_details(path: str) -> dict[str, Any]:
+    try:
+        from pypdf import PdfReader  # type: ignore[import-not-found]
+    except Exception as exc:
+        return {"present": None, "available": False, "error": f"pypdf unavailable: {exc}"}
+
+    try:
+        reader = PdfReader(path)
+        root = reader.trailer.get("/Root", {})
+        raw_action = root.get("/OpenAction")
+        if raw_action is None:
+            return {"present": False, "available": True}
+        details = _describe_open_action(raw_action, reader)
+        details["available"] = True
+        return details
+    except Exception as exc:
+        return {"present": None, "available": True, "error": str(exc)}
+
+
 class PdfStaticAnalyzer(Analyzer):
     key = "pdf_static"
     label = "PDF Static: Structure and Actions"
@@ -328,19 +423,38 @@ class PdfStaticAnalyzer(Analyzer):
         xref_count = len(re.findall(rb"\bxref\b", data))
         trailer_count = data.count(b"trailer")
         findings: list[Finding] = []
+        open_action = _open_action_details(context.file_path)
 
         for keyword, detail in HIGH_RISK_KEYWORDS.items():
             count = keyword_counts.get(keyword, 0)
-            if count:
+            if not count:
+                continue
+            if keyword == "/OpenAction":
+                risk = open_action.get("risk")
+                severity = Severity.high
+                if risk == "low":
+                    severity = Severity.low
+                elif risk == "medium":
+                    severity = Severity.medium
                 findings.append(
                     Finding(
                         analyzer=self.key,
-                        title=f"{keyword} present",
-                        severity=Severity.high,
-                        detail=detail,
-                        value=count,
+                        title="/OpenAction present",
+                        severity=severity,
+                        detail=open_action.get("summary") or detail,
+                        value=open_action if open_action.get("present") is not None else count,
                     )
                 )
+                continue
+            findings.append(
+                Finding(
+                    analyzer=self.key,
+                    title=f"{keyword} present",
+                    severity=Severity.high,
+                    detail=detail,
+                    value=count,
+                )
+            )
 
         for keyword, detail in MEDIUM_RISK_KEYWORDS.items():
             count = keyword_counts.get(keyword, 0)
@@ -441,6 +555,7 @@ class PdfStaticAnalyzer(Analyzer):
                 {"name": "trailer", "count": trailer_count},
             ],
             "keyword_counts": keyword_rows,
+            "open_action": open_action,
             "uris": uris,
             "metadata": _extract_metadata(data),
             "pymupdf": pymupdf,
