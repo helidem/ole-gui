@@ -53,3 +53,12 @@ class AnalysisResponse(BaseModel):
     risk: Severity
     summary: str
     results: list[AnalyzerResult]
+    selected_tools: list[str] = Field(default_factory=list)
+
+
+class BulkAnalysisResponse(BaseModel):
+    app_version: str
+    count: int
+    risk: Severity
+    summary: str
+    results: list[AnalysisResponse]

@@ -200,6 +200,14 @@ input[type="password"] {
   font-weight: 560;
 }
 
+.tool-list.disabled {
+  opacity: 0.55;
+}
+
+.tool-list.disabled label {
+  cursor: not-allowed;
+}
+
 input[type="checkbox"] {
   width: 18px;
   height: 18px;
@@ -289,6 +297,47 @@ input[type="checkbox"] {
   gap: 14px;
   padding: 18px;
   border-bottom: 1px solid var(--line);
+}
+
+.triage-header {
+  background: #fbfcfd;
+}
+
+.triage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  padding: 18px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafb;
+}
+
+.triage-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 13px;
+  cursor: pointer;
+}
+
+.triage-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(24, 32, 42, 0.08);
+}
+
+.triage-card p,
+.triage-card small {
+  color: var(--muted);
+}
+
+.file-report {
+  border-top: 10px solid var(--bg);
+}
+
+.file-report-header {
+  background: white;
 }
 
 .risk-row {

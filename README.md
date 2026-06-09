@@ -1,8 +1,8 @@
 # Oletools GUI
 
-Version: 1.0
+Version: 1.1
 
-A modular web UI for analyzing uploaded Office/RTF/PDF documents with `oletools`-style static triage.
+A modular triage web UI for analyzing one or many uploaded Office/RTF/PDF documents with `oletools`-style static triage.
 
 ## What It Runs
 
@@ -13,6 +13,15 @@ A modular web UI for analyzing uploaded Office/RTF/PDF documents with `oletools`
 - `PDF Static`: PDFiD/pdf-parser-inspired static triage for JavaScript, launch/open actions, embedded files, URIs, encryption, object streams, metadata, hashes, entropy, and incremental updates. OpenAction entries are decoded to show whether they are benign view destinations (page/fit mode) or higher-risk action dictionaries (JavaScript, Launch, URI, SubmitForm, remote GoTo, etc.). If PyMuPDF is installed, it also extracts embedded file bytes in-memory and reports filename, size, magic type, entropy, MD5/SHA1/SHA256, first bytes, printable preview, and risk classification directly in the UI.
 
 The app is intentionally split into small analyzer classes under `app/analyzers`. Add a new tool by creating another `Analyzer` implementation and registering it in `app/analyzers/registry.py`.
+
+## Triage workflow
+
+- Upload one or more files in a single run.
+- Keep **Auto** enabled to select analyzers per file extension:
+  - `.pdf` → PDF Static only.
+  - Office/RTF/XML/MHT/ZIP-style document extensions → OleID, OleVBA, MacroRaptor, and OleObj/RtfObj.
+  - Unknown extensions → all analyzers.
+- Disable **Auto** to manually choose the analyzer set used for every uploaded file.
 
 ## Run Locally
 

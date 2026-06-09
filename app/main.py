@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.analyzers.registry import ANALYZERS
 from app.config import APP_VERSION, STATIC_DIR
 from app.models import AnalysisOptions
-from app.services.analysis import analyze_file
+from app.services.analysis import analyze_file, auto_tools_for_filename, build_bulk_response
 from app.services.storage import save_upload
 
 
@@ -46,17 +46,45 @@ def tools() -> list[dict[str, str]]:
 async def analyze(
     file: UploadFile = File(...),
     tools: str = Form("oleid,olevba,mraptor,objects,pdf_static"),
+    auto_tools: bool = Form(False),
     zip_password: str | None = Form(None),
     office_password: str | None = Form(None),
     include_macro_source: bool = Form(True),
     include_decoded_strings: bool = Form(True),
 ):
     path, file_info = await save_upload(file)
+    selected_tools = auto_tools_for_filename(file_info.original_name) if auto_tools else [tool.strip() for tool in tools.split(",") if tool.strip()]
     options = AnalysisOptions(
-        tools=[tool.strip() for tool in tools.split(",") if tool.strip()],
+        tools=selected_tools,
         zip_password=zip_password or None,
         office_password=office_password or None,
         include_macro_source=include_macro_source,
         include_decoded_strings=include_decoded_strings,
     )
     return analyze_file(path, file_info, options)
+
+
+@app.post("/api/analyze/bulk")
+async def analyze_bulk(
+    files: list[UploadFile] = File(...),
+    tools: str = Form("oleid,olevba,mraptor,objects,pdf_static"),
+    auto_tools: bool = Form(False),
+    zip_password: str | None = Form(None),
+    office_password: str | None = Form(None),
+    include_macro_source: bool = Form(True),
+    include_decoded_strings: bool = Form(True),
+):
+    reports = []
+    manual_tools = [tool.strip() for tool in tools.split(",") if tool.strip()]
+    for upload in files:
+        path, file_info = await save_upload(upload)
+        selected_tools = auto_tools_for_filename(file_info.original_name) if auto_tools else manual_tools
+        options = AnalysisOptions(
+            tools=selected_tools,
+            zip_password=zip_password or None,
+            office_password=office_password or None,
+            include_macro_source=include_macro_source,
+            include_decoded_strings=include_decoded_strings,
+        )
+        reports.append(analyze_file(path, file_info, options))
+    return build_bulk_response(reports)

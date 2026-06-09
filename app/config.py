@@ -9,6 +9,6 @@ UPLOAD_DIR = BASE_DIR / "uploads"
 
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 ANALYZER_TIMEOUT_SECONDS = 45
-APP_VERSION = "1.0"
+APP_VERSION = "1.1"
 
 DEFAULT_TOOLS = ("oleid", "olevba", "mraptor", "objects", "pdf_static")

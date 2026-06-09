@@ -6,11 +6,26 @@ const resultsPanel = document.querySelector("#resultsPanel");
 const appStatus = document.querySelector("#appStatus");
 const submitButton = document.querySelector("#submitButton");
 const resultTemplate = document.querySelector("#resultTemplate");
+const autoTools = document.querySelector("#autoTools");
+const manualTools = document.querySelector("#manualTools");
 
 const severityRank = { info: 0, low: 1, medium: 2, high: 3, error: 2 };
+const pdfExtensions = new Set(["pdf"]);
+const officeExtensions = new Set([
+  "doc", "docm", "dot", "dotm", "xls", "xlsm", "xlsb", "xlt", "xltm",
+  "ppt", "pptm", "pot", "potm", "rtf", "xml", "mht", "mhtml", "zip",
+]);
+const pdfTools = ["pdf_static"];
+const officeTools = ["oleid", "olevba", "mraptor", "objects"];
+const allTools = ["oleid", "olevba", "mraptor", "objects", "pdf_static"];
 
 fileInput.addEventListener("change", () => {
-  fileLabel.textContent = fileInput.files[0]?.name || "Choose a document";
+  updateSelectedFiles();
+});
+
+autoTools.addEventListener("change", () => {
+  updateAutoToolState();
+  updateSelectedFiles();
 });
 
 for (const eventName of ["dragenter", "dragover"]) {
@@ -28,25 +43,31 @@ for (const eventName of ["dragleave", "drop"]) {
 }
 
 dropZone.addEventListener("drop", (event) => {
-  const file = event.dataTransfer.files[0];
-  if (!file) return;
+  const files = [...event.dataTransfer.files];
+  if (!files.length) return;
   const transfer = new DataTransfer();
-  transfer.items.add(file);
+  for (const file of files) {
+    transfer.items.add(file);
+  }
   fileInput.files = transfer.files;
-  fileLabel.textContent = file.name;
+  updateSelectedFiles();
 });
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!fileInput.files[0]) return;
+  const files = [...fileInput.files];
+  if (!files.length) return;
 
   const checkedTools = [...document.querySelectorAll("input[name='tool']:checked")].map(
     (input) => input.value,
   );
 
   const data = new FormData();
-  data.append("file", fileInput.files[0]);
+  for (const file of files) {
+    data.append("files", file);
+  }
   data.append("tools", checkedTools.join(","));
+  data.append("auto_tools", autoTools.checked);
   data.append("zip_password", document.querySelector("#zipPassword").value);
   data.append("office_password", document.querySelector("#officePassword").value);
   data.append("include_macro_source", document.querySelector("#includeMacroSource").checked);
@@ -54,12 +75,12 @@ form.addEventListener("submit", async (event) => {
 
   setBusy(true);
   try {
-    const response = await fetch("/api/analyze", { method: "POST", body: data });
+    const response = await fetch("/api/analyze/bulk", { method: "POST", body: data });
     const payload = await response.json();
     if (!response.ok) {
       throw new Error(payload.detail || "Analysis failed");
     }
-    renderReport(payload);
+    renderTriage(payload);
     appStatus.textContent = "Complete";
   } catch (error) {
     resultsPanel.innerHTML = `
@@ -75,16 +96,114 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+function updateAutoToolState() {
+  manualTools.classList.toggle("disabled", autoTools.checked);
+  for (const input of document.querySelectorAll("input[name='tool']")) {
+    input.disabled = autoTools.checked;
+  }
+}
+
+function updateSelectedFiles() {
+  const files = [...fileInput.files];
+  if (!files.length) {
+    fileLabel.textContent = "Choose documents";
+    if (autoTools.checked) setManualToolChecks(allTools);
+    return;
+  }
+  fileLabel.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
+  if (autoTools.checked) {
+    const selected = new Set(files.flatMap((file) => toolsForFile(file.name)));
+    setManualToolChecks([...selected]);
+  }
+}
+
+function extensionFor(name) {
+  const last = String(name || "").toLowerCase().split(".").pop();
+  return last === String(name || "").toLowerCase() ? "" : last;
+}
+
+function toolsForFile(name) {
+  const ext = extensionFor(name);
+  if (pdfExtensions.has(ext)) return pdfTools;
+  if (officeExtensions.has(ext)) return officeTools;
+  return allTools;
+}
+
+function setManualToolChecks(keys) {
+  const selected = new Set(keys);
+  for (const input of document.querySelectorAll("input[name='tool']")) {
+    input.checked = selected.has(input.value);
+  }
+}
+
 function setBusy(isBusy) {
   submitButton.disabled = isBusy;
-  submitButton.textContent = isBusy ? "Analyzing..." : "Analyze document";
+  submitButton.textContent = isBusy ? "Analyzing..." : "Analyze selected documents";
   appStatus.textContent = isBusy ? "Running" : appStatus.textContent;
 }
 
-function renderReport(report) {
+function renderTriage(payload) {
   resultsPanel.innerHTML = "";
+  const reports = payload.results || (payload.file ? [payload] : []);
   const header = document.createElement("header");
-  header.className = "report-header";
+  header.className = "report-header triage-header";
+  header.innerHTML = `
+    <div class="risk-row">
+      <div>
+        <h2>Triage view</h2>
+        <p>${escapeHtml(payload.summary || `Analyzed ${reports.length} file(s).`)}</p>
+      </div>
+      <span class="risk-badge risk-${payload.risk || "info"}">${escapeHtml(payload.risk || "info")}</span>
+    </div>
+    <div class="metadata">
+      <span>${reports.length} file(s)</span>
+      <span>Tool v${escapeHtml(payload.app_version || "1.1")}</span>
+      <span>${autoTools.checked ? "Auto analyzer selection" : "Manual analyzer selection"}</span>
+    </div>
+  `;
+  resultsPanel.appendChild(header);
+
+  const grid = document.createElement("section");
+  grid.className = "triage-grid";
+  for (const report of reports) {
+    const card = document.createElement("article");
+    card.className = "triage-card";
+    const selected = report.selected_tools?.length ? report.selected_tools.join(", ") : "default";
+    card.innerHTML = `
+      <div>
+        <strong>${escapeHtml(report.file.original_name)}</strong>
+        <p>${escapeHtml(report.summary)}</p>
+      </div>
+      <span class="risk-badge risk-${report.risk}">${escapeHtml(report.risk)}</span>
+      <small>${formatBytes(report.file.size)} · ${escapeHtml(report.file.content_type || "Unknown type")} · ${escapeHtml(selected)}</small>
+    `;
+    card.addEventListener("click", () => {
+      document.querySelector(`[data-report-id="${reportId(report)}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    grid.appendChild(card);
+  }
+  resultsPanel.appendChild(grid);
+
+  for (const report of reports) {
+    const wrap = document.createElement("section");
+    wrap.className = "file-report";
+    wrap.dataset.reportId = reportId(report);
+    wrap.appendChild(renderReportHeader(report));
+    for (const result of report.results) {
+      wrap.appendChild(renderResult(result));
+    }
+    resultsPanel.appendChild(wrap);
+  }
+}
+
+function reportId(report) {
+  return `${report.file.stored_name || report.file.original_name}`.replace(/[^A-Za-z0-9_-]+/g, "_");
+}
+
+function renderReportHeader(report) {
+  const header = document.createElement("header");
+  header.className = "report-header file-report-header";
+  const selected = report.selected_tools?.length ? report.selected_tools.join(", ") : "default";
   header.innerHTML = `
     <div class="risk-row">
       <div>
@@ -97,9 +216,16 @@ function renderReport(report) {
       <span>${formatBytes(report.file.size)}</span>
       <span>${escapeHtml(report.file.content_type || "Unknown type")}</span>
       <span>${report.results.length} analyzers</span>
-      <span>Tool v${escapeHtml(report.app_version || "1.0")}</span>
+      <span>${escapeHtml(selected)}</span>
+      <span>Tool v${escapeHtml(report.app_version || "1.1")}</span>
     </div>
   `;
+  return header;
+}
+
+function renderReport(report) {
+  resultsPanel.innerHTML = "";
+  const header = renderReportHeader(report);
   resultsPanel.appendChild(header);
 
   for (const result of report.results) {
@@ -401,3 +527,6 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+updateAutoToolState();
+updateSelectedFiles();

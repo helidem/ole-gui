@@ -11,8 +11,8 @@
       <section class="workspace">
         <header class="topbar">
           <div>
-            <h1>Oletools GUI <span class="version-badge">v1.0</span></h1>
-            <p>Upload an Office or RTF document and run malware-focused oletools analyzers.</p>
+            <h1>Oletools GUI <span class="version-badge">v1.1</span></h1>
+            <p>Triage one or many Office, RTF, and PDF documents with malware-focused static analyzers.</p>
           </div>
           <div class="status-pill" id="appStatus">Ready</div>
         </header>
@@ -20,7 +20,7 @@
         <section class="analysis-layout">
           <form id="analyzeForm" class="upload-panel">
             <label class="drop-zone" id="dropZone">
-              <input id="fileInput" name="file" type="file" required />
+              <input id="fileInput" name="file" type="file" multiple required />
               <span class="drop-icon">+</span>
               <strong id="fileLabel">Choose a document</strong>
               <span>DOC, DOCM, XLS, XLSM, XLSB, PPT, RTF, PDF, XML, MHT, ZIP and related formats</span>
@@ -38,7 +38,12 @@
             </div>
 
             <fieldset class="tool-list">
-              <legend>Analyzers</legend>
+              <legend>Analyzer selection</legend>
+              <label><input id="autoTools" type="checkbox" checked /> Auto: choose analyzers from each file extension</label>
+            </fieldset>
+
+            <fieldset class="tool-list" id="manualTools">
+              <legend>Manual analyzers</legend>
               <label><input type="checkbox" name="tool" value="oleid" checked /> OleID: Document Indicators</label>
               <label><input type="checkbox" name="tool" value="olevba" checked /> OleVBA: Macro Analysis</label>
               <label><input type="checkbox" name="tool" value="mraptor" checked /> MacroRaptor: Macro Heuristics</label>
@@ -51,14 +56,14 @@
               <label><input id="includeDecoded" type="checkbox" checked /> Decode strings</label>
             </div>
 
-            <button class="primary-button" id="submitButton" type="submit">Analyze document</button>
+            <button class="primary-button" id="submitButton" type="submit">Analyze selected documents</button>
           </form>
 
           <section class="results-panel" id="resultsPanel">
             <div class="empty-state" id="emptyState">
               <div class="empty-mark">DOC</div>
-              <h2>No analysis yet</h2>
-              <p>Select a file and run the analyzers. Results stay in this browser session.</p>
+              <h2>No triage yet</h2>
+              <p>Select one or more files and run the analyzers. Results stay in this browser session.</p>
             </div>
           </section>
         </section>
