@@ -171,7 +171,7 @@ function renderTriage(payload) {
     const selected = report.selected_tools?.length ? report.selected_tools.join(", ") : "default";
     card.innerHTML = `
       <div>
-        <strong>${escapeHtml(report.file.original_name)}</strong>
+        <strong class="file-name" title="${escapeHtml(report.file.original_name)}">${escapeHtml(report.file.original_name)}</strong>
         <p>${escapeHtml(report.summary)}</p>
       </div>
       <span class="risk-badge risk-${report.risk}">${escapeHtml(report.risk)}</span>
@@ -207,7 +207,7 @@ function renderReportHeader(report) {
   header.innerHTML = `
     <div class="risk-row">
       <div>
-        <h2>${escapeHtml(report.file.original_name)}</h2>
+        <h2 class="file-name" title="${escapeHtml(report.file.original_name)}">${escapeHtml(report.file.original_name)}</h2>
         <p>${escapeHtml(report.summary)}</p>
       </div>
       <span class="risk-badge risk-${report.risk}">${escapeHtml(report.risk)}</span>

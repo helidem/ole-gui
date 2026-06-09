@@ -119,12 +119,17 @@ h1 {
   place-items: center;
   gap: 8px;
   min-height: 190px;
+  min-width: 0;
   border: 1px dashed #8a98aa;
   border-radius: 8px;
   background: #f9fbfc;
   padding: 22px;
   text-align: center;
   cursor: pointer;
+}
+
+.drop-zone > * {
+  max-width: 100%;
 }
 
 .drop-zone.drag-over {
@@ -153,6 +158,16 @@ h1 {
 .empty-state p,
 .metadata {
   color: var(--muted);
+}
+
+#fileLabel,
+.file-name,
+.metadata span,
+.finding,
+td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .field-grid {
@@ -315,11 +330,18 @@ input[type="checkbox"] {
 .triage-card {
   display: grid;
   gap: 10px;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
   padding: 13px;
   cursor: pointer;
+}
+
+.triage-card > div,
+.triage-card small {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .triage-card:hover {
@@ -346,6 +368,11 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.risk-row > div {
+  min-width: 0;
+  flex: 1 1 260px;
 }
 
 .risk-badge {
@@ -405,6 +432,7 @@ input[type="checkbox"] {
 .result-heading > span:first-child {
   display: grid;
   gap: 4px;
+  min-width: 0;
 }
 
 .result-count {
