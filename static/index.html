@@ -11,7 +11,7 @@
       <section class="workspace">
         <header class="topbar">
           <div>
-            <h1>Oletools GUI <span class="version-badge">v1.1</span></h1>
+            <h1>Oletools GUI <span class="version-badge" id="versionBadge">v1.2</span></h1>
             <p>Triage one or many Office, RTF, and PDF documents with malware-focused static analyzers.</p>
           </div>
           <div class="status-pill" id="appStatus">Ready</div>
@@ -22,7 +22,7 @@
             <label class="drop-zone" id="dropZone">
               <input id="fileInput" name="file" type="file" multiple required />
               <span class="drop-icon">+</span>
-              <strong id="fileLabel">Choose a document</strong>
+              <strong id="fileLabel">Choose documents</strong>
               <span>DOC, DOCM, XLS, XLSM, XLSB, PPT, RTF, PDF, XML, MHT, ZIP and related formats</span>
             </label>
 
@@ -77,7 +77,10 @@
             <strong class="result-title"></strong>
             <small class="result-summary"></small>
           </span>
-          <span class="result-count"></span>
+          <span class="heading-meta">
+            <span class="result-count"></span>
+            <span class="chevron" aria-hidden="true"></span>
+          </span>
         </button>
         <div class="result-body"></div>
       </article>

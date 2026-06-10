@@ -8,8 +8,10 @@ const submitButton = document.querySelector("#submitButton");
 const resultTemplate = document.querySelector("#resultTemplate");
 const autoTools = document.querySelector("#autoTools");
 const manualTools = document.querySelector("#manualTools");
+const versionBadge = document.querySelector("#versionBadge");
 
 const severityRank = { info: 0, low: 1, medium: 2, high: 3, error: 2 };
+let appVersion = "1.2";
 const pdfExtensions = new Set(["pdf"]);
 const officeExtensions = new Set([
   "doc", "docm", "dot", "dotm", "xls", "xlsm", "xlsb", "xlt", "xltm",
@@ -81,7 +83,7 @@ form.addEventListener("submit", async (event) => {
       throw new Error(payload.detail || "Analysis failed");
     }
     renderTriage(payload);
-    appStatus.textContent = "Complete";
+    setStatus("Complete", "is-ok");
   } catch (error) {
     resultsPanel.innerHTML = `
       <div class="empty-state">
@@ -90,7 +92,7 @@ form.addEventListener("submit", async (event) => {
         <p>${escapeHtml(error.message)}</p>
       </div>
     `;
-    appStatus.textContent = "Error";
+    setStatus("Error", "is-error");
   } finally {
     setBusy(false);
   }
@@ -139,7 +141,13 @@ function setManualToolChecks(keys) {
 function setBusy(isBusy) {
   submitButton.disabled = isBusy;
   submitButton.textContent = isBusy ? "Analyzing..." : "Analyze selected documents";
-  appStatus.textContent = isBusy ? "Running" : appStatus.textContent;
+  if (isBusy) setStatus("Running", "is-busy");
+}
+
+function setStatus(text, state) {
+  appStatus.textContent = text;
+  appStatus.classList.remove("is-busy", "is-ok", "is-error");
+  if (state) appStatus.classList.add(state);
 }
 
 function renderTriage(payload) {
@@ -151,13 +159,13 @@ function renderTriage(payload) {
     <div class="risk-row">
       <div>
         <h2>Triage view</h2>
-        <p>${escapeHtml(payload.summary || `Analyzed ${reports.length} file(s).`)}</p>
+        <p>${escapeHtml(payload.summary || `Analyzed ${plural(reports.length, "file")}.`)}</p>
       </div>
       <span class="risk-badge risk-${payload.risk || "info"}">${escapeHtml(payload.risk || "info")}</span>
     </div>
     <div class="metadata">
-      <span>${reports.length} file(s)</span>
-      <span>Tool v${escapeHtml(payload.app_version || "1.2")}</span>
+      <span>${plural(reports.length, "file")}</span>
+      <span>Tool v${escapeHtml(payload.app_version || appVersion)}</span>
       <span>${autoTools.checked ? "Auto analyzer selection" : "Manual analyzer selection"}</span>
     </div>
   `;
@@ -215,22 +223,12 @@ function renderReportHeader(report) {
     <div class="metadata">
       <span>${formatBytes(report.file.size)}</span>
       <span>${escapeHtml(report.file.content_type || "Unknown type")}</span>
-      <span>${report.results.length} analyzers</span>
+      <span>${plural(report.results.length, "analyzer")}</span>
       <span>${escapeHtml(selected)}</span>
-      <span>Tool v${escapeHtml(report.app_version || "1.2")}</span>
+      <span>Tool v${escapeHtml(report.app_version || appVersion)}</span>
     </div>
   `;
   return header;
-}
-
-function renderReport(report) {
-  resultsPanel.innerHTML = "";
-  const header = renderReportHeader(report);
-  resultsPanel.appendChild(header);
-
-  for (const result of report.results) {
-    resultsPanel.appendChild(renderResult(result));
-  }
 }
 
 function renderResult(result) {
@@ -238,7 +236,7 @@ function renderResult(result) {
   const block = fragment.querySelector(".result-block");
   fragment.querySelector(".result-title").textContent = result.label;
   fragment.querySelector(".result-summary").textContent = result.summary;
-  fragment.querySelector(".result-count").textContent = `${result.findings.length} findings`;
+  fragment.querySelector(".result-count").textContent = plural(result.findings.length, "finding");
   const body = fragment.querySelector(".result-body");
 
   if (result.findings.length) {
@@ -248,7 +246,7 @@ function renderResult(result) {
       const item = document.createElement("div");
       item.className = `finding ${finding.severity}`;
       item.innerHTML = `
-        <strong>${escapeHtml(finding.title)}</strong>
+        <strong>${escapeHtml(finding.title)} <span class="severity-tag ${escapeHtml(finding.severity)}">${escapeHtml(finding.severity)}</span></strong>
         <span>${escapeHtml(finding.detail || String(finding.value ?? ""))}</span>
       `;
       list.appendChild(item);
@@ -321,8 +319,11 @@ function renderResult(result) {
     body.appendChild(none);
   }
 
-  fragment.querySelector(".result-heading").addEventListener("click", () => {
-    block.classList.toggle("collapsed");
+  const heading = fragment.querySelector(".result-heading");
+  heading.setAttribute("aria-expanded", "true");
+  heading.addEventListener("click", () => {
+    const collapsed = block.classList.toggle("collapsed");
+    heading.setAttribute("aria-expanded", String(!collapsed));
   });
 
   return fragment;
@@ -333,7 +334,7 @@ function renderTable(rows, columns) {
   wrap.className = "table-wrap";
   const table = document.createElement("table");
   table.innerHTML = `
-    <thead><tr>${columns.map((column) => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead>
+    <thead><tr>${columns.map((column) => `<th>${escapeHtml(columnLabel(column))}</th>`).join("")}</tr></thead>
     <tbody></tbody>
   `;
   const body = table.querySelector("tbody");
@@ -591,6 +592,27 @@ function bySeverity(a, b) {
   return (severityRank[b.severity] || 0) - (severityRank[a.severity] || 0);
 }
 
+function plural(count, singular) {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
+}
+
+const columnLabels = {
+  uri: "URI",
+  md5: "MD5",
+  sha1: "SHA-1",
+  sha256: "SHA-256",
+  object_count_N: "objects (/N)",
+  first_object_offset_First: "first offset (/First)",
+  decode_parms_present: "decode parms",
+  embedded_object_numbers_preview: "embedded objects",
+  first_bytes_hex: "first bytes",
+  printable_preview: "preview",
+};
+
+function columnLabel(column) {
+  return columnLabels[column] || String(column).replaceAll("_", " ");
+}
+
 function formatValue(value) {
   if (value === null || value === undefined) return "";
   if (typeof value === "object") return JSON.stringify(value);
@@ -613,5 +635,20 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+async function loadVersion() {
+  try {
+    const response = await fetch("/api/version");
+    if (!response.ok) return;
+    const payload = await response.json();
+    if (payload.version) {
+      appVersion = payload.version;
+      versionBadge.textContent = `v${payload.version}`;
+    }
+  } catch {
+    // keep the static fallback version
+  }
+}
+
 updateAutoToolState();
 updateSelectedFiles();
+loadVersion();

@@ -12,6 +12,8 @@
   --info: #315f9a;
   --low: #527a35;
   --shadow: 0 18px 48px rgba(24, 32, 42, 0.09);
+  --radius: 8px;
+  --radius-small: 6px;
 }
 
 * {
@@ -31,6 +33,11 @@ body {
 button,
 input {
   font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .app-shell {
@@ -89,6 +96,22 @@ h1 {
   padding: 10px 16px;
   text-align: center;
   color: var(--muted);
+  font-weight: 600;
+}
+
+.status-pill.is-busy {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.status-pill.is-ok {
+  border-color: var(--low);
+  color: var(--low);
+}
+
+.status-pill.is-error {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .analysis-layout {
@@ -102,7 +125,7 @@ h1 {
 .results-panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 
@@ -121,7 +144,7 @@ h1 {
   min-height: 190px;
   min-width: 0;
   border: 1px dashed #8a98aa;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: #f9fbfc;
   padding: 22px;
   text-align: center;
@@ -180,13 +203,13 @@ label {
   display: grid;
   gap: 7px;
   font-size: 0.88rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 input[type="password"] {
   width: 100%;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   padding: 10px 11px;
   background: white;
   color: var(--ink);
@@ -197,7 +220,7 @@ input[type="password"] {
   gap: 9px;
   margin: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 12px;
 }
 
@@ -212,7 +235,7 @@ input[type="password"] {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-weight: 560;
+  font-weight: 500;
 }
 
 .tool-list.disabled {
@@ -236,11 +259,11 @@ input[type="checkbox"] {
 
 .primary-button {
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-small);
   background: var(--accent);
   color: white;
   padding: 13px 16px;
-  font-weight: 750;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -255,7 +278,7 @@ input[type="checkbox"] {
 
 .tool-button {
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   background: #f8fafb;
   color: #344054;
   padding: 8px 11px;
@@ -297,13 +320,13 @@ input[type="checkbox"] {
   width: min(42vw, 180px);
   aspect-ratio: 1;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background:
     linear-gradient(135deg, rgba(18, 107, 104, 0.14), transparent 48%),
     linear-gradient(315deg, rgba(180, 35, 24, 0.1), transparent 52%),
     white;
   color: var(--accent-strong);
-  font-weight: 900;
+  font-weight: 700;
   font-size: 2.2rem;
 }
 
@@ -332,7 +355,7 @@ input[type="checkbox"] {
   gap: 10px;
   min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: white;
   padding: 13px;
   cursor: pointer;
@@ -379,7 +402,7 @@ input[type="checkbox"] {
   border-radius: 999px;
   padding: 8px 13px;
   color: white;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   font-size: 0.8rem;
 }
@@ -435,12 +458,34 @@ input[type="checkbox"] {
   min-width: 0;
 }
 
+.heading-meta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .result-count {
   flex: 0 0 auto;
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 5px 10px;
   color: var(--muted);
+}
+
+.chevron {
+  width: 8px;
+  height: 8px;
+  margin-bottom: 4px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.result-block.collapsed .chevron {
+  margin-bottom: 0;
+  transform: rotate(-45deg);
 }
 
 .result-body {
@@ -482,10 +527,41 @@ input[type="checkbox"] {
   margin-bottom: 3px;
 }
 
+.severity-tag {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--info);
+  color: white;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.severity-tag.info {
+  background: var(--info);
+}
+
+.severity-tag.low {
+  background: var(--low);
+}
+
+.severity-tag.medium,
+.severity-tag.error {
+  background: var(--warn);
+}
+
+.severity-tag.high {
+  background: var(--danger);
+}
+
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 table {
@@ -515,7 +591,7 @@ pre {
   overflow: auto;
   max-height: 360px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: #111827;
   color: #e5e7eb;
   padding: 13px;
