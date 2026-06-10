@@ -60,7 +60,6 @@ MEDIUM_RISK_KEYWORDS = {
     "/GoToR": "Remote go-to action references external content.",
     "/ImportData": "ImportData action can load external form data.",
     "/URI": "URI actions or links are present.",
-    "/ObjStm": "Object streams can hide objects from simple scanners.",
     "/Encrypt": "Encrypted PDFs can obscure content from static analysis.",
     "/JBIG2Decode": "JBIG2 streams are worth reviewing for exploit-era samples.",
 }
@@ -245,6 +244,71 @@ def _printable_preview(data: bytes, limit: int = 5) -> list[str]:
         if len(preview) >= limit:
             break
     return preview
+
+
+def _pdf_int_from_dict(dictionary: bytes, key: bytes) -> int | None:
+    match = re.search(rb"/" + re.escape(key) + rb"\s+([+-]?\d+)\b", dictionary)
+    return int(match.group(1)) if match else None
+
+
+def _pdf_name_value_from_dict(dictionary: bytes, key: bytes) -> str | None:
+    match = re.search(rb"/" + re.escape(key) + rb"\s+(/(?:#(?:[0-9A-Fa-f]{2})|[^\s<>\[\]\(\)/%#])+)", dictionary)
+    return _decode_pdf_name(match.group(1)) if match else None
+
+
+def _pdf_filter_values(dictionary: bytes) -> list[str]:
+    match = re.search(rb"/Filter\s+(\[(?P<array>.*?)\]|(?P<name>/(?:#(?:[0-9A-Fa-f]{2})|[^\s<>\[\]\(\)/%#])+))", dictionary, re.DOTALL)
+    if not match:
+        return []
+    source = match.group("array") or match.group("name") or b""
+    return [_decode_pdf_name(token) for token in NAME_TOKEN_RE.findall(source)]
+
+
+def _object_stream_details(data: bytes) -> list[dict[str, Any]]:
+    """Return raw structural details for /ObjStm indirect objects."""
+    details: list[dict[str, Any]] = []
+    obj_matches = list(re.finditer(rb"(?m)(\d+)\s+(\d+)\s+obj\b", data))
+    for index, match in enumerate(obj_matches):
+        start = match.end()
+        next_obj = obj_matches[index + 1].start() if index + 1 < len(obj_matches) else len(data)
+        endobj = data.find(b"endobj", start, next_obj)
+        end = endobj if endobj != -1 else next_obj
+        body = data[start:end]
+        names = {_decode_pdf_name(token) for token in NAME_TOKEN_RE.findall(body[:4096])}
+        if "/ObjStm" not in names:
+            continue
+
+        stream_match = re.search(rb"\bstream\r?\n", body)
+        stream_end = body.find(b"endstream", stream_match.end() if stream_match else 0) if stream_match else -1
+        dictionary = body[: stream_match.start()] if stream_match else body[:4096]
+        stream_size = None
+        if stream_match and stream_end != -1:
+            stream_size = max(0, stream_end - stream_match.end())
+
+        filters = _pdf_filter_values(dictionary)
+        first = _pdf_int_from_dict(dictionary, b"First")
+        embedded_object_numbers_preview: list[int] = []
+        if stream_match and stream_end != -1 and first is not None and not filters:
+            header = body[stream_match.end() : min(stream_match.end() + first, stream_end)]
+            ints = [int(value) for value in re.findall(rb"\b\d+\b", header[:4096])]
+            embedded_object_numbers_preview = ints[0::2][:50]
+
+        details.append(
+            {
+                "object": int(match.group(1)),
+                "generation": int(match.group(2)),
+                "byte_offset": match.start(),
+                "type": _pdf_name_value_from_dict(dictionary, b"Type"),
+                "declared_length": _pdf_int_from_dict(dictionary, b"Length"),
+                "stream_size": stream_size,
+                "object_count_N": _pdf_int_from_dict(dictionary, b"N"),
+                "first_object_offset_First": first,
+                "filters": filters,
+                "decode_parms_present": b"/DecodeParms" in dictionary,
+                "embedded_object_numbers_preview": embedded_object_numbers_preview,
+            }
+        )
+    return details
 
 
 def _embedded_file_risk(name: str, magic: str, entropy: float) -> tuple[str, str]:
@@ -579,6 +643,7 @@ class PdfStaticAnalyzer(Analyzer):
         findings: list[Finding] = []
         open_action = _open_action_details(context.file_path)
         additional_actions = _additional_action_details(context.file_path)
+        object_streams = _object_stream_details(data)
 
         for keyword, detail in HIGH_RISK_KEYWORDS.items():
             count = keyword_counts.get(keyword, 0)
@@ -640,6 +705,20 @@ class PdfStaticAnalyzer(Analyzer):
                         value=count,
                     )
                 )
+
+        if object_streams:
+            findings.append(
+                Finding(
+                    analyzer=self.key,
+                    title="Object stream(s) found",
+                    severity=Severity.medium,
+                    detail="PDF object streams can hide indirect objects from simple scanners; review the detailed /ObjStm metadata below.",
+                    value={
+                        "count": len(object_streams),
+                        "objects": [f"{item['object']} {item['generation']} R" for item in object_streams[:20]],
+                    },
+                )
+            )
 
         if obfuscated:
             findings.append(
@@ -727,6 +806,7 @@ class PdfStaticAnalyzer(Analyzer):
                 {"name": "trailer", "count": trailer_count},
             ],
             "keyword_counts": keyword_rows,
+            "object_streams": object_streams,
             "open_action": open_action,
             "additional_actions": additional_actions,
             "uris": uris,

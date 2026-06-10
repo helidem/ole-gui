@@ -272,6 +272,10 @@ function renderResult(result) {
     body.appendChild(renderTable(result.data.keyword_counts, ["keyword", "count", "obfuscated"]));
   }
 
+  if (result.data?.object_streams?.length) {
+    body.appendChild(renderObjectStreams(result.data.object_streams));
+  }
+
   if (result.data?.open_action?.present) {
     body.appendChild(renderOpenAction(result.data.open_action));
   }
@@ -349,6 +353,41 @@ function renderKeyValueTable(values, title) {
   const heading = document.createElement("h3");
   heading.textContent = title;
   wrap.append(heading, renderTable(rows, ["key", "value"]));
+  return wrap;
+}
+
+function renderObjectStreams(streams) {
+  const wrap = document.createElement("section");
+  wrap.className = "detail-section";
+  const heading = document.createElement("h3");
+  heading.textContent = "Object streams (/ObjStm)";
+  wrap.appendChild(heading);
+  wrap.appendChild(renderTable(
+    streams.map((stream) => ({
+      object: `${stream.object} ${stream.generation} obj`,
+      byte_offset: stream.byte_offset,
+      type: stream.type,
+      object_count_N: stream.object_count_N,
+      first_object_offset_First: stream.first_object_offset_First,
+      declared_length: stream.declared_length,
+      stream_size: stream.stream_size,
+      filters: stream.filters,
+      decode_parms_present: stream.decode_parms_present,
+      embedded_object_numbers_preview: stream.embedded_object_numbers_preview,
+    })),
+    [
+      "object",
+      "byte_offset",
+      "type",
+      "object_count_N",
+      "first_object_offset_First",
+      "declared_length",
+      "stream_size",
+      "filters",
+      "decode_parms_present",
+      "embedded_object_numbers_preview",
+    ],
+  ));
   return wrap;
 }
 
