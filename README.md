@@ -1,6 +1,6 @@
 # Oletools GUI
 
-Version: 1.2
+Version: 1.3
 
 A modular triage web UI for analyzing one or many uploaded Office/RTF/PDF documents with `oletools`-style static triage.
 

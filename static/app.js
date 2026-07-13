@@ -11,7 +11,7 @@ const manualTools = document.querySelector("#manualTools");
 const versionBadge = document.querySelector("#versionBadge");
 
 const severityRank = { info: 0, low: 1, medium: 2, high: 3, error: 2 };
-let appVersion = "1.2";
+let appVersion = "1.3";
 const pdfExtensions = new Set(["pdf"]);
 const officeExtensions = new Set([
   "doc", "docm", "dot", "dotm", "xls", "xlsm", "xlsb", "xlt", "xltm",
