@@ -34,7 +34,11 @@ def is_rtf(path: str | Path, original_name: str) -> bool:
 
 def is_pdf(path: str | Path, original_name: str) -> bool:
     head = read_head(path)
-    return PDF_MAGIC in head[:1024] or Path(original_name.lower()).suffix == ".pdf"
+    if PDF_MAGIC in head[:1024]:
+        return True
+    if head.startswith((OLE_MAGIC, ZIP_MAGIC)) or head.lstrip().startswith(RTF_MAGIC):
+        return False
+    return Path(original_name.lower()).suffix == ".pdf"
 
 
 def is_probable_macro_source(path: str | Path, original_name: str) -> bool:

@@ -6,6 +6,7 @@ from app.analyzers.base import AnalyzerContext
 from app.analyzers.registry import selected_analyzers
 from app.config import APP_VERSION, DEFAULT_TOOLS
 from app.models import AnalysisOptions, AnalysisResponse, AnalyzerResult, BulkAnalysisResponse, Severity, UploadedFileInfo
+from app.services.filetype import is_office_like, is_pdf, is_rtf
 from app.services.risk import max_severity, summarize
 
 PDF_TOOLS = ("pdf_static",)
@@ -40,6 +41,15 @@ def auto_tools_for_filename(filename: str) -> list[str]:
     if suffix in OFFICE_EXTENSIONS:
         return list(OFFICE_TOOLS)
     return list(DEFAULT_TOOLS)
+
+
+def auto_tools_for_file(path: Path, filename: str) -> list[str]:
+    """Content-aware auto-selection; the filename heuristic is only a fallback."""
+    if is_pdf(path, filename):
+        return list(PDF_TOOLS)
+    if is_office_like(path, filename) or is_rtf(path, filename):
+        return list(OFFICE_TOOLS)
+    return auto_tools_for_filename(filename)
 
 
 def analyze_file(path: Path, file_info: UploadedFileInfo, options: AnalysisOptions) -> AnalysisResponse:

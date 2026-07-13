@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -8,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from app.analyzers.registry import ANALYZERS
 from app.config import APP_VERSION, STATIC_DIR
 from app.models import AnalysisOptions
-from app.services.analysis import analyze_file, auto_tools_for_filename, build_bulk_response
+from app.services.analysis import analyze_file, auto_tools_for_file, build_bulk_response
 from app.services.storage import save_upload
 
 
@@ -53,7 +54,7 @@ async def analyze(
     include_decoded_strings: bool = Form(True),
 ):
     path, file_info = await save_upload(file)
-    selected_tools = auto_tools_for_filename(file_info.original_name) if auto_tools else [tool.strip() for tool in tools.split(",") if tool.strip()]
+    selected_tools = auto_tools_for_file(path, file_info.original_name) if auto_tools else [tool.strip() for tool in tools.split(",") if tool.strip()]
     options = AnalysisOptions(
         tools=selected_tools,
         zip_password=zip_password or None,
@@ -61,7 +62,7 @@ async def analyze(
         include_macro_source=include_macro_source,
         include_decoded_strings=include_decoded_strings,
     )
-    return analyze_file(path, file_info, options)
+    return await run_in_threadpool(analyze_file, path, file_info, options)
 
 
 @app.post("/api/analyze/bulk")
@@ -78,7 +79,7 @@ async def analyze_bulk(
     manual_tools = [tool.strip() for tool in tools.split(",") if tool.strip()]
     for upload in files:
         path, file_info = await save_upload(upload)
-        selected_tools = auto_tools_for_filename(file_info.original_name) if auto_tools else manual_tools
+        selected_tools = auto_tools_for_file(path, file_info.original_name) if auto_tools else manual_tools
         options = AnalysisOptions(
             tools=selected_tools,
             zip_password=zip_password or None,
@@ -86,5 +87,5 @@ async def analyze_bulk(
             include_macro_source=include_macro_source,
             include_decoded_strings=include_decoded_strings,
         )
-        reports.append(analyze_file(path, file_info, options))
+        reports.append(await run_in_threadpool(analyze_file, path, file_info, options))
     return build_bulk_response(reports)

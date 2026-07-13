@@ -5,7 +5,7 @@ import subprocess
 from app.analyzers.base import Analyzer, AnalyzerContext
 from app.analyzers.cli_analyzer import cli_error_result, password_args, run_module
 from app.models import AnalyzerResult, Finding, Severity
-from app.services.filetype import is_pdf
+from app.services.filetype import is_pdf, is_rtf
 
 
 class ObjectsAnalyzer(Analyzer):
@@ -22,9 +22,9 @@ class ObjectsAnalyzer(Analyzer):
                 summary="Skipped because the upload is a PDF, not an Office/RTF object container.",
             )
 
-        suffix = context.original_name.lower().rsplit(".", 1)[-1] if "." in context.original_name else ""
-        module = "oletools.rtfobj" if suffix == "rtf" else "oletools.oleobj"
-        label = "rtfobj" if suffix == "rtf" else "oleobj"
+        use_rtfobj = is_rtf(context.file_path, context.original_name)
+        module = "oletools.rtfobj" if use_rtfobj else "oletools.oleobj"
+        label = "rtfobj" if use_rtfobj else "oleobj"
         try:
             code, output = run_module(module, [*password_args(context), context.file_path])
         except (subprocess.TimeoutExpired, Exception) as exc:

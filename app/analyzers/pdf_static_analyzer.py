@@ -428,6 +428,7 @@ def _open_action_value(value: Any, reader: Any | None = None, depth: int = 0) ->
 
 def _describe_open_action(raw_action: Any, reader: Any) -> dict[str, Any]:
     serialized = _open_action_value(raw_action, reader)
+    raw_action = _resolve_pdf_object(raw_action)
     details: dict[str, Any] = {"present": True, "raw": serialized}
 
     if isinstance(raw_action, (list, tuple)):
@@ -505,6 +506,14 @@ def _action_risk(action_type: str) -> str:
     if action_type in MEDIUM_RISK_ACTION_TYPES:
         return "medium"
     return "low"
+
+
+def _severity_from_risk_label(risk: Any) -> Severity:
+    if risk == "low":
+        return Severity.low
+    if risk == "medium":
+        return Severity.medium
+    return Severity.high
 
 
 def _describe_action_value(action: Any, reader: Any) -> dict[str, Any]:
@@ -645,43 +654,38 @@ class PdfStaticAnalyzer(Analyzer):
         additional_actions = _additional_action_details(context.file_path)
         object_streams = _object_stream_details(data)
 
+        # /OpenAction and /AA findings rely on parser-level details, not just raw
+        # keyword counts: the keys may live inside compressed object streams where
+        # byte-level counting sees nothing.
+        open_action_count = keyword_counts.get("/OpenAction", 0)
+        if open_action_count or open_action.get("present"):
+            findings.append(
+                Finding(
+                    analyzer=self.key,
+                    title="/OpenAction present",
+                    severity=_severity_from_risk_label(open_action.get("risk")),
+                    detail=open_action.get("summary") or HIGH_RISK_KEYWORDS["/OpenAction"],
+                    value=open_action if open_action.get("present") is not None else open_action_count,
+                )
+            )
+
+        aa_count = keyword_counts.get("/AA", 0)
+        if aa_count or additional_actions.get("present"):
+            findings.append(
+                Finding(
+                    analyzer=self.key,
+                    title="/AA additional actions present",
+                    severity=_severity_from_risk_label(additional_actions.get("risk")),
+                    detail=additional_actions.get("summary") or HIGH_RISK_KEYWORDS["/AA"],
+                    value=additional_actions if additional_actions.get("present") is not None else aa_count,
+                )
+            )
+
         for keyword, detail in HIGH_RISK_KEYWORDS.items():
+            if keyword in ("/OpenAction", "/AA"):
+                continue
             count = keyword_counts.get(keyword, 0)
             if not count:
-                continue
-            if keyword == "/OpenAction":
-                risk = open_action.get("risk")
-                severity = Severity.high
-                if risk == "low":
-                    severity = Severity.low
-                elif risk == "medium":
-                    severity = Severity.medium
-                findings.append(
-                    Finding(
-                        analyzer=self.key,
-                        title="/OpenAction present",
-                        severity=severity,
-                        detail=open_action.get("summary") or detail,
-                        value=open_action if open_action.get("present") is not None else count,
-                    )
-                )
-                continue
-            if keyword == "/AA":
-                risk = additional_actions.get("risk")
-                severity = Severity.high
-                if risk == "low":
-                    severity = Severity.low
-                elif risk == "medium":
-                    severity = Severity.medium
-                findings.append(
-                    Finding(
-                        analyzer=self.key,
-                        title="/AA additional actions present",
-                        severity=severity,
-                        detail=additional_actions.get("summary") or detail,
-                        value=additional_actions if additional_actions.get("present") is not None else count,
-                    )
-                )
                 continue
             findings.append(
                 Finding(

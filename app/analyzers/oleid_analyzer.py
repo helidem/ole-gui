@@ -54,7 +54,16 @@ class OleIdAnalyzer(Analyzer):
                 findings=[Finding(analyzer=self.key, title="Import failed", severity=Severity.error, detail=str(exc))],
             )
 
-        indicators = OleID(context.file_path).check()
+        try:
+            indicators = OleID(context.file_path).check()
+        except Exception as exc:
+            return AnalyzerResult(
+                key=self.key,
+                label=self.label,
+                status="error",
+                summary="oleid analysis failed.",
+                findings=[Finding(analyzer=self.key, title="Analysis failed", severity=Severity.error, detail=str(exc))],
+            )
         macro_capable = should_run_macro_analyzers(context.file_path, context.original_name)
         rows: list[dict[str, object]] = []
         findings: list[Finding] = []

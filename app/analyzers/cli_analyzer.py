@@ -14,6 +14,7 @@ def run_module(module: str, args: list[str], cwd: str | None = None) -> tuple[in
         check=False,
         capture_output=True,
         text=True,
+        errors="replace",
         timeout=ANALYZER_TIMEOUT_SECONDS,
         cwd=cwd,
     )
