@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shlex
 
 from app.analyzers.base import AnalyzerContext
 from app.analyzers.registry import selected_analyzers
@@ -34,6 +35,26 @@ OFFICE_EXTENSIONS = {
 }
 
 
+def command_line_for(tool_key: str, filename: str, options: AnalysisOptions) -> str:
+    """Build a copyable command without placing submitted passwords in the response."""
+    args = ["python", "-m", "app.cli", "--tool", tool_key]
+    if options.zip_password:
+        args.extend(["--zip-password", "$ZIP_PASSWORD"])
+    if options.office_password:
+        args.extend(["--office-password", "$OFFICE_PASSWORD"])
+    if not options.include_macro_source:
+        args.append("--no-macro-source")
+    if not options.include_decoded_strings:
+        args.append("--no-decoded-strings")
+    args.extend(["--", filename])
+    command = shlex.join(args)
+    # shlex quotes dollar signs, but these two values are deliberately shell
+    # environment-variable placeholders for secrets, not literal arguments.
+    return command.replace("'$ZIP_PASSWORD'", '"$ZIP_PASSWORD"').replace(
+        "'$OFFICE_PASSWORD'", '"$OFFICE_PASSWORD"'
+    )
+
+
 def auto_tools_for_filename(filename: str) -> list[str]:
     suffix = Path(filename.lower()).suffix
     if suffix in PDF_EXTENSIONS:
@@ -61,7 +82,9 @@ def analyze_file(path: Path, file_info: UploadedFileInfo, options: AnalysisOptio
     )
     results: list[AnalyzerResult] = []
     for analyzer in selected_analyzers(tool_keys):
-        results.append(analyzer.analyze(context))
+        result = analyzer.analyze(context)
+        result.command_line = command_line_for(analyzer.key, file_info.original_name, options)
+        results.append(result)
 
     risk = max_severity(results)
     return AnalysisResponse(

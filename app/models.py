@@ -30,6 +30,7 @@ class AnalyzerResult(BaseModel):
     findings: list[Finding] = Field(default_factory=list)
     data: dict[str, Any] = Field(default_factory=dict)
     raw_output: str | None = None
+    command_line: str | None = None
 
 
 class UploadedFileInfo(BaseModel):

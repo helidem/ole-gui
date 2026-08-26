@@ -239,6 +239,10 @@ function renderResult(result) {
   fragment.querySelector(".result-count").textContent = plural(result.findings.length, "finding");
   const body = fragment.querySelector(".result-body");
 
+  if (result.command_line) {
+    body.appendChild(renderCommandLine(result.command_line));
+  }
+
   if (result.findings.length) {
     const list = document.createElement("div");
     list.className = "finding-list";
@@ -327,6 +331,33 @@ function renderResult(result) {
   });
 
   return fragment;
+}
+
+function renderCommandLine(command) {
+  const wrap = document.createElement("div");
+  wrap.className = "command-line";
+  const heading = document.createElement("div");
+  heading.className = "command-line-heading";
+  const label = document.createElement("strong");
+  label.textContent = "Command-line equivalent";
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "tool-button compact";
+  copy.textContent = "Copy";
+  copy.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(command);
+      copy.textContent = "Copied";
+      window.setTimeout(() => { copy.textContent = "Copy"; }, 1200);
+    } catch (_error) {
+      copy.textContent = "Copy failed";
+    }
+  });
+  const pre = document.createElement("pre");
+  pre.textContent = command;
+  heading.append(label, copy);
+  wrap.append(heading, pre);
+  return wrap;
 }
 
 function renderTable(rows, columns) {

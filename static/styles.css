@@ -599,6 +599,18 @@ pre {
   line-height: 1.5;
 }
 
+.command-line {
+  display: grid;
+  gap: 8px;
+}
+
+.command-line-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .macro-grid {
   display: grid;
   gap: 12px;
