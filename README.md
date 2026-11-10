@@ -44,10 +44,22 @@ This repository includes Kasm-specific container assets so the app can run as a 
 
 ### 1) Build and push the workspace image
 
+Build and push in a single step:
+
 ```bash
-docker build -f Dockerfile.kasm -t <your-registry>/ole-gui:latest .
-docker push <your-registry>/ole-gui:latest
+docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
+  -f Dockerfile.kasm -t <your-registry>/ole-gui:latest --push .
 ```
+
+Avoid a separate `docker build` followed by `docker push`. With the containerd image store, the default build attaches attestation manifests, and `docker push` can then fail with `does not provide any platform` after uploading the layers but without updating the tag. If the Kasm agent pulls the image before you notice, it fetches the old `latest` and replaces your local build. `--provenance=false --sbom=false` produces a plain single-platform manifest, and `--push` uploads it straight from the build.
+
+Check that the registry tag was updated:
+
+```bash
+docker buildx imagetools inspect <your-registry>/ole-gui:latest
+```
+
+Running sessions keep the image they started with. End them in Kasm Admin and launch a new session to pick up the new image.
 
 ### 2) Import the workspace definition in Kasm
 
@@ -58,4 +70,4 @@ docker push <your-registry>/ole-gui:latest
 
 ### 3) Launch and use
 
-When the Workspace starts, the app is served inside the container on port `8081` and Firefox opens `http://127.0.0.1:8081` automatically.
+When the Workspace starts, the app is served inside the container on port `8085` and Firefox opens `http://127.0.0.1:8085` automatically.
