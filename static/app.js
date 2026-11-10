@@ -241,6 +241,11 @@ function renderResult(result) {
 
   if (result.command_line) {
     body.appendChild(renderCommandLine(result.command_line));
+  } else if (result.command_line_note) {
+    const note = document.createElement("p");
+    note.className = "metadata command-line-note";
+    note.textContent = result.command_line_note;
+    body.appendChild(note);
   }
 
   if (result.findings.length) {

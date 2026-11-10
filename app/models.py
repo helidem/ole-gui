@@ -31,6 +31,7 @@ class AnalyzerResult(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
     raw_output: str | None = None
     command_line: str | None = None
+    command_line_note: str | None = None
 
 
 class UploadedFileInfo(BaseModel):
